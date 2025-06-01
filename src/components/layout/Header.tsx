@@ -2,7 +2,7 @@
 "use client";
 
 import Link from 'next/link';
-import { Menu, X, Stethoscope, LogOut, LogIn, UserPlus, LayoutDashboard, User } from 'lucide-react';
+import { Menu, X, Stethoscope, LogOut, LogIn, UserPlus, LayoutDashboard, User, Home, BookOpen, Mail, HelpCircle } from 'lucide-react'; // Added Home, BookOpen, Mail, HelpCircle
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
@@ -33,6 +33,14 @@ interface UserProfile extends DocumentData {
   email?: string;
 }
 
+interface NavItem {
+  href: string;
+  label: string;
+  icon?: React.ComponentType<{ className?: string }>; // For desktop icons
+  mobileIcon?: React.ReactElement; // For mobile icons
+}
+
+
 export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -53,11 +61,11 @@ export function Header() {
             setUserProfile(userDocSnap.data() as UserProfile);
           } else {
             console.log("No such user document!");
-            setUserProfile({ email: currentUser.email }); // Fallback if profile not in Firestore
+            setUserProfile({ email: currentUser.email }); 
           }
         } catch (error) {
           console.error("Error fetching user profile:", error);
-          setUserProfile({ email: currentUser.email }); // Fallback on error
+          setUserProfile({ email: currentUser.email }); 
         }
       } else {
         setUserProfile(null);
@@ -70,7 +78,7 @@ export function Header() {
   }, [currentUser, loading]);
 
   const getDashboardLink = (role?: string) => {
-    if (!role) return "/"; // Fallback to home or a generic dashboard
+    if (!role) return "/"; 
     switch (role) {
       case "Caregiver":
         return "/dashboard/caregiver";
@@ -83,29 +91,39 @@ export function Header() {
     }
   };
 
-  const baseNavItems = [
-    { href: '/', label: 'Home' },
-    { href: '/education', label: 'Education' },
-    { href: '/contact', label: 'Contact' },
-    { href: '/help', label: 'Help' },
-  ];
-
   const dashboardHref = userProfile ? getDashboardLink(userProfile.role) : '/';
 
-  const navItems = currentUser && userProfile
-    ? [
-        ...baseNavItems,
-        { href: dashboardHref, label: 'Dashboard', icon: <LayoutDashboard className="mr-2 h-4 w-4" /> },
-      ]
-    : [
-        ...baseNavItems,
-        { href: '/login', label: 'Login', icon: <LogIn className="mr-2 h-4 w-4" /> },
-        { href: '/signup', label: 'Sign Up', icon: <UserPlus className="mr-2 h-4 w-4" /> },
-      ];
+  const baseNavItemsRaw = [
+    { href: '/', label: 'Home', icon: Home, mobileIcon: <Home className="mr-2 h-4 w-4" /> },
+    { href: '/education', label: 'Education', icon: BookOpen, mobileIcon: <BookOpen className="mr-2 h-4 w-4" /> },
+    { href: '/contact', label: 'Contact', icon: Mail, mobileIcon: <Mail className="mr-2 h-4 w-4" /> },
+    { href: '/help', label: 'Help', icon: HelpCircle, mobileIcon: <HelpCircle className="mr-2 h-4 w-4" /> },
+  ];
 
+  let desktopNavLinks: NavItem[] = [];
+  let mobileSheetNavItems: NavItem[] = [];
+
+  if (currentUser && userProfile) {
+    desktopNavLinks = [
+      { href: dashboardHref, label: 'Dashboard', icon: LayoutDashboard },
+      ...baseNavItemsRaw.filter(item => item.href !== '/').map(({icon, ...item}) => item), // Remove Home, strip icons for desktop general nav
+    ];
+    mobileSheetNavItems = [
+      { href: dashboardHref, label: 'Dashboard', mobileIcon: <LayoutDashboard className="mr-2 h-4 w-4" /> },
+      ...baseNavItemsRaw.filter(item => item.href !== '/'),
+    ];
+  } else {
+    desktopNavLinks = baseNavItemsRaw.map(({icon, mobileIcon, ...item}) => item); // Strip icons for desktop general nav
+    mobileSheetNavItems = [
+      ...baseNavItemsRaw,
+      { href: '/login', label: 'Login', mobileIcon: <LogIn className="mr-2 h-4 w-4" /> },
+      { href: '/signup', label: 'Sign Up', mobileIcon: <UserPlus className="mr-2 h-4 w-4" /> },
+    ];
+  }
+  
   const handleLogout = async () => {
     await logout();
-    setUserProfile(null); // Clear profile on logout
+    setUserProfile(null); 
     setIsMobileMenuOpen(false);
   };
 
@@ -117,13 +135,12 @@ export function Header() {
     return email ? email.substring(0, 2).toUpperCase() : 'U';
   };
 
-
   if (!mounted) {
     return (
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-16 max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Logo />
-           <div className="h-8 w-8 bg-muted rounded-full animate-pulse"></div> {/* Placeholder for avatar/menu */}
+           <div className="h-8 w-8 bg-muted rounded-full animate-pulse"></div> 
         </div>
       </header>
     );
@@ -135,30 +152,20 @@ export function Header() {
         <Logo />
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex gap-4 items-center">
-          {baseNavItems.map((item) => (
-            <Link
-              key={item.label}
-              href={item.href}
-              className="text-sm font-medium text-foreground/70 transition-colors hover:text-foreground"
-            >
-              {item.label}
-            </Link>
+        <nav className="hidden md:flex gap-1 items-center">
+          {desktopNavLinks.map((item) => (
+            <Button variant="link" asChild key={item.label} className="text-sm font-medium text-foreground/70 transition-colors hover:text-foreground hover:no-underline px-3 py-2">
+              <Link href={item.href} >
+                {item.icon && <item.icon className="mr-1 h-4 w-4" />} 
+                {item.label}
+              </Link>
+            </Button>
           ))}
-          {!loading && currentUser && userProfile && (
-             <Link
-              href={dashboardHref}
-              className="text-sm font-medium text-foreground/70 transition-colors hover:text-foreground flex items-center"
-            >
-              <LayoutDashboard className="mr-1 h-4 w-4" /> Dashboard
-            </Link>
-          )}
           {!loading && currentUser && userProfile ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full ml-2">
                   <Avatar className="h-8 w-8">
-                    {/* <AvatarImage src={currentUser.photoURL || "https://placehold.co/40x40.png"} alt={userProfile.fullName || currentUser.email || "User"} /> */}
                     <AvatarFallback>{getAvatarFallback(userProfile.fullName, currentUser.email)}</AvatarFallback>
                   </Avatar>
                 </Button>
@@ -178,7 +185,6 @@ export function Header() {
                 <DropdownMenuItem asChild>
                   <Link href={dashboardHref}> <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard </Link>
                 </DropdownMenuItem>
-                {/* Add profile/settings links here if needed later */}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" />
@@ -188,7 +194,7 @@ export function Header() {
             </DropdownMenu>
           ) : !loading ? (
             <>
-              <Button variant="ghost" asChild>
+              <Button variant="ghost" asChild className="ml-2">
                 <Link href="/login">Login</Link>
               </Button>
               <Button asChild>
@@ -196,7 +202,7 @@ export function Header() {
               </Button>
             </>
           ) : (
-            <div className="h-8 w-8 bg-muted rounded-full animate-pulse"></div>
+            <div className="h-8 w-8 bg-muted rounded-full animate-pulse ml-2"></div>
           )}
         </nav>
 
@@ -223,20 +229,13 @@ export function Header() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {/* Iterate through base items first */}
-                {baseNavItems.map((item) => (
+                {mobileSheetNavItems.map((item) => (
                   <DropdownMenuItem key={item.label} asChild>
                     <Link href={item.href} onClick={() => setIsMobileMenuOpen(false)}>
-                       {/* Add icons if you have them for base items here */} {item.label}
+                       {item.mobileIcon} {item.label}
                     </Link>
                   </DropdownMenuItem>
                 ))}
-                {/* Dashboard link */}
-                 <DropdownMenuItem asChild>
-                    <Link href={dashboardHref} onClick={() => setIsMobileMenuOpen(false)}>
-                      <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
-                    </Link>
-                  </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" /> Log out
@@ -263,14 +262,14 @@ export function Header() {
                     </SheetClose>
                   </div>
                   <nav className="flex flex-col gap-4">
-                    {navItems.map((item) => ( // navItems already filters for auth state
+                    {mobileSheetNavItems.map((item) => (
                       <SheetClose asChild key={item.label}>
                         <Link
                           href={item.href}
                           className="text-lg font-medium text-foreground/80 hover:text-foreground flex items-center"
                           onClick={() => setIsMobileMenuOpen(false)}
                         >
-                          {item.icon} {item.label}
+                          {item.mobileIcon} {item.label}
                         </Link>
                       </SheetClose>
                     ))}
@@ -286,5 +285,3 @@ export function Header() {
     </header>
   );
 }
-
-    

@@ -18,10 +18,9 @@ import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { LogIn, Eye, EyeOff } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth"; // Import signOut
 import { doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
-// import { useAuth } from "@/contexts/AuthContext"; // We might not need to manually set currentUser here if AuthContext handles it
 import { useState } from "react";
 
 
@@ -41,7 +40,6 @@ export function LoginForm() {
   const { toast } = useToast();
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
-  // const { setCurrentUser } = useAuth(); // We might not need to manually set currentUser here if AuthContext handles it
   
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -49,10 +47,12 @@ export function LoginForm() {
   });
 
   async function onSubmit(data: LoginFormValues) {
+    let userJustSignedIn = false;
     try {
       const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+      userJustSignedIn = true; // Mark that auth step was successful
       const user = userCredential.user;
-      console.log("User signed in:", user);
+      console.log("User signed in to Firebase Auth:", user);
 
       // Fetch user role from Firestore
       const userDocRef = doc(db, "users", user.uid);
@@ -61,9 +61,7 @@ export function LoginForm() {
       if (userDocSnap.exists()) {
         const userData = userDocSnap.data();
         const role = userData.role;
-        // Manually trigger re-check in AuthContext if needed, or rely on onAuthStateChanged
-        // For now, AuthContext should update automatically.
-
+        
         toast({
           title: "Login Successful",
           description: `Welcome back, ${userData.fullName || user.email}!`,
@@ -91,20 +89,34 @@ export function LoginForm() {
           description: "User profile not found. Please contact support.",
           variant: "destructive",
         });
-         // Optionally, sign out the user if their Firestore profile is missing
-        // await auth.signOut();
+         // Sign out the user if their Firestore profile is missing after successful auth
+        if (user) { // user should exist here from userCredential
+          await signOut(auth);
+          console.log("User signed out due to missing profile document.");
+        }
       }
     } catch (error: any) {
-      console.error("Error signing in:", error);
-      let errorMessage = "Failed to log in. Please check your credentials.";
+      console.error("Error during login process:", error);
+      let errorMessage = "Failed to log in. Please check your credentials or profile data.";
       if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
         errorMessage = "Invalid email or password.";
       }
+      
       toast({
         title: "Login Failed",
         description: errorMessage,
         variant: "destructive",
       });
+
+      // If Firebase auth succeeded but a subsequent step (like Firestore fetch) failed, sign out.
+      if (userJustSignedIn && auth.currentUser) {
+        try {
+          await signOut(auth);
+          console.log("User signed out due to an error after initial Firebase Auth success (e.g., profile fetch failure).");
+        } catch (signOutError) {
+          console.error("Error attempting to sign out after login failure:", signOutError);
+        }
+      }
     }
   }
 
@@ -136,7 +148,7 @@ export function LoginForm() {
                     type={showPassword ? "text" : "password"}
                     placeholder="********"
                     {...field}
-                    className="pr-10" // Add padding for the icon
+                    className="pr-10" 
                   />
                 </FormControl>
                 <div
