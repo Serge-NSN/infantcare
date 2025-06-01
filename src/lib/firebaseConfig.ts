@@ -1,14 +1,15 @@
 // src/lib/firebaseConfig.ts
-// TODO: Replace with your actual Firebase project configuration
-// IMPORTANT: DO NOT COMMIT THIS FILE IF IT CONTAINS SENSITIVE KEYS.
-// Consider using environment variables for production.
 
+// Your web app's Firebase configuration
+// IMPORTANT: Replace these with your actual Firebase project's configuration values!
 export const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID",
-  measurementId: "YOUR_MEASUREMENT_ID" // Optional
+  apiKey: "AIzaSyDOIMqPi_x90aApcnKlvcAzGQyl6mkXOjg",
+  authDomain: "infantconnect.firebaseapp.com",
+  projectId: "infantconnect",
+  storageBucket: "infantconnect.firebasestorage.app",
+  messagingSenderId: "280271520878",
+  appId: "1:280271520878:web:c4742a72fc28581623927f"
 };
+
+// Note: The Firebase app initialization (initializeApp) is handled in src/lib/firebase.ts
+// to ensure it's done only once and services are correctly associated with the app instance.

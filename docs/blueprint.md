@@ -1,4 +1,4 @@
-# **App Name**: InfantConnect
+# **App Name**: InfantCare
 
 ## Core Features:
 
