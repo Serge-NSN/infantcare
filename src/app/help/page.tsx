@@ -43,7 +43,7 @@ export default function HelpPage() {
             <ShieldQuestion className="w-7 h-7" />Frequently Asked Questions
           </CardTitle>
           <CardDescription className="font-body">
-            Find answers to common questions about using InfantConnect.
+            Find answers to common questions about using InfantCare.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -72,7 +72,7 @@ export default function HelpPage() {
             contact our support team. You can reach us via the <a href="/contact" className="text-primary hover:underline">Contact Page</a>.
           </p>
           <p className="mt-2">
-            We are here to assist you in making the most of InfantConnect.
+            We are here to assist you in making the most of InfantCare.
           </p>
         </CardContent>
       </Card>

@@ -22,7 +22,7 @@ export default function HomePage() {
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center justify-center space-y-8 text-white">
         <h1 className="text-5xl md:text-7xl font-headline font-bold drop-shadow-md">
-          Welcome to InfantConnect
+          Welcome to InfantCare
         </h1>
         <p className="text-lg md:text-2xl max-w-3xl font-body drop-shadow-sm">
           Bridging the gap in infant healthcare through seamless collaboration and advanced technology.

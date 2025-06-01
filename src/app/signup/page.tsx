@@ -8,7 +8,7 @@ export default function SignupPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-headline">Create an Account</CardTitle>
           <CardDescription className="font-body">
-            Join InfantConnect to streamline infant healthcare.
+            Join InfantCare to streamline infant healthcare.
           </CardDescription>
         </CardHeader>
         <CardContent>

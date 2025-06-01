@@ -18,7 +18,7 @@ const navItems = [
 const Logo = () => (
   <Link href="/" className="flex items-center gap-2">
     <Stethoscope className="h-8 w-8 text-primary" />
-    <span className="text-2xl font-headline font-bold">InfantConnect</span>
+    <span className="text-2xl font-headline font-bold">InfantCare</span>
   </Link>
 );
 

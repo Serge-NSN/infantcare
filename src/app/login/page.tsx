@@ -8,7 +8,7 @@ export default function LoginPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-headline">Welcome Back</CardTitle>
           <CardDescription className="font-body">
-            Log in to access your InfantConnect dashboard.
+            Log in to access your InfantCare dashboard.
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -4,7 +4,7 @@ import { Header } from '@/components/layout/Header';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'InfantConnect',
+  title: 'InfantCare',
   description: 'Connecting care for infants.',
 };
 

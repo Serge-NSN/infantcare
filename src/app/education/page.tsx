@@ -15,7 +15,7 @@ export default function EducationPage() {
         </CardHeader>
         <CardContent className="space-y-4 font-body">
           <p>
-            Welcome to the InfantConnect Educational Resources section. Here, we aim to provide valuable information
+            Welcome to the InfantCare Educational Resources section. Here, we aim to provide valuable information
             and resources for caregivers, medical doctors, and specialists involved in infant healthcare.
           </p>
           <p>
