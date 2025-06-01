@@ -23,8 +23,9 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Stethoscope } from "lucide-react";
-import { auth } from "@/lib/firebase"; // Import Firebase auth instance
+import { auth, db } from "@/lib/firebase"; // Import Firebase auth and db instances
 import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore"; // Import Firestore functions
 import { useRouter } from "next/navigation";
 
 const signupFormSchema = z.object({
@@ -61,15 +62,28 @@ export function SignupForm() {
 
   async function onSubmit(data: SignupFormValues) {
     try {
-      // For now, we are only creating the user in Firebase Auth.
-      // Storing role, career, etc., in Firestore would be a next step.
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-      console.log("User created:", userCredential.user);
+      const user = userCredential.user;
+      console.log("User created in Auth:", user);
+
+      // Store additional user information in Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        email: data.email,
+        role: data.role,
+        fullName: data.fullName,
+        career: data.career,
+        address: data.address,
+        hospital: data.hospital,
+        createdAt: new Date(),
+      });
+
+      console.log("User data stored in Firestore");
+
       toast({
         title: "Signup Successful",
         description: "Your account has been created. Please log in.",
       });
-      // TODO: In a future step, store data.role, data.career, etc., in Firestore user profile
       form.reset();
       router.push("/login"); // Redirect to login page after successful signup
     } catch (error: any) {
@@ -77,6 +91,8 @@ export function SignupForm() {
       let errorMessage = "Failed to sign up. Please try again.";
       if (error.code === "auth/email-already-in-use") {
         errorMessage = "This email address is already in use.";
+      } else if (error.code === "firestore/permission-denied") {
+        errorMessage = "Failed to save user data. Please check Firestore rules."
       }
       toast({
         title: "Signup Failed",

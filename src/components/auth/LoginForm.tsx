@@ -17,9 +17,12 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { LogIn } from "lucide-react";
-import { auth } from "@/lib/firebase"; // Import Firebase auth instance
+import { auth, db } from "@/lib/firebase"; // Import Firebase auth and db instances
 import { signInWithEmailAndPassword } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore"; // Import Firestore functions
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+
 
 const loginFormSchema = z.object({
   email: z.string().email("Invalid email address."),
@@ -36,6 +39,8 @@ const defaultValues: Partial<LoginFormValues> = {
 export function LoginForm() {
   const { toast } = useToast();
   const router = useRouter();
+  // const { setCurrentUser } = useAuth(); // We might not need to manually set currentUser here if AuthContext handles it
+  
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
     defaultValues,
@@ -44,14 +49,49 @@ export function LoginForm() {
   async function onSubmit(data: LoginFormValues) {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
-      console.log("User signed in:", userCredential.user);
-      toast({
-        title: "Login Successful",
-        description: "Welcome back!",
-      });
-      // TODO: Implement role-based redirection based on user's role from Firestore.
-      // For now, redirecting to homepage.
-      router.push("/"); 
+      const user = userCredential.user;
+      console.log("User signed in:", user);
+
+      // Fetch user role from Firestore
+      const userDocRef = doc(db, "users", user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        const role = userData.role;
+        // Manually trigger re-check in AuthContext if needed, or rely on onAuthStateChanged
+        // For now, AuthContext should update automatically.
+
+        toast({
+          title: "Login Successful",
+          description: `Welcome back, ${userData.fullName || user.email}!`,
+        });
+
+        // Role-based redirection
+        switch (role) {
+          case "Caregiver":
+            router.push("/dashboard/caregiver");
+            break;
+          case "Medical Doctor":
+            router.push("/dashboard/doctor");
+            break;
+          case "Specialist":
+            router.push("/dashboard/specialist");
+            break;
+          default:
+            console.warn("Unknown user role:", role);
+            router.push("/"); // Fallback to homepage
+        }
+      } else {
+        console.error("User document not found in Firestore for UID:", user.uid);
+        toast({
+          title: "Login Failed",
+          description: "User profile not found. Please contact support.",
+          variant: "destructive",
+        });
+         // Optionally, sign out the user if their Firestore profile is missing
+        // await auth.signOut();
+      }
     } catch (error: any) {
       console.error("Error signing in:", error);
       let errorMessage = "Failed to log in. Please check your credentials.";
