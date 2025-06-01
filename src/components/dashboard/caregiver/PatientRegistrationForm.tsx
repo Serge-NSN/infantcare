@@ -91,17 +91,18 @@ export function PatientRegistrationForm() {
       }
     }
 
-    const patientData = {
+    const patientData: any = {
       ...data,
-      caregiverUid: currentUser.uid, // Associate patient with the logged-in caregiver
+      caregiverUid: currentUser.uid, 
       registrationDateTime: Timestamp.fromDate(new Date(`${data.registrationDate}T${data.registrationTime}`)),
       createdAt: Timestamp.now(),
-      uploadedFileNames: fileNames, // Store names of files
-      patientFiles: undefined, // Remove original FileList from data to be stored
+      uploadedFileNames: fileNames, 
     };
-    // Remove original date and time strings as we now have registrationDateTime
-    delete (patientData as any).registrationDate;
-    delete (patientData as any).registrationTime;
+    
+    // Remove original date, time, and FileList fields before saving to Firestore
+    delete patientData.registrationDate;
+    delete patientData.registrationTime;
+    delete patientData.patientFiles;
 
 
     try {
@@ -115,7 +116,10 @@ export function PatientRegistrationForm() {
     } catch (error: any) {
       console.error("Error registering patient:", error);
       let errorMessage = "Failed to register patient. Please try again.";
-      if (error.code === "firestore/permission-denied") {
+      if (error.message && error.message.includes("Unsupported field value: undefined")) {
+        errorMessage = "Failed to register patient: encountered an undefined field. Please check form data.";
+        console.error("Offending data being sent to Firestore (check for undefined values):", patientData);
+      } else if (error.code === "firestore/permission-denied") {
         errorMessage = "Permission denied. Please check Firestore rules.";
       }
       toast({
@@ -348,5 +352,3 @@ export function PatientRegistrationForm() {
     </Form>
   );
 }
-
-    
