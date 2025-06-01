@@ -25,6 +25,9 @@ import {
 import { MedicalTermInput } from "@/components/shared/MedicalTermInput";
 import { useToast } from "@/hooks/use-toast";
 import { CalendarIcon, ClockIcon, Save } from "lucide-react";
+import { auth, db } from "@/lib/firebase";
+import { collection, addDoc, Timestamp } from "firebase/firestore";
+import { useAuth } from "@/contexts/AuthContext"; // Import useAuth
 
 const patientRegistrationSchema = z.object({
   registrationDate: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date" }),
@@ -32,6 +35,7 @@ const patientRegistrationSchema = z.object({
   hospitalName: z.string().min(2, "Hospital name is required."),
   hospitalId: z.string().min(1, "Hospital ID is required."),
   patientName: z.string().min(2, "Patient name is required."),
+  patientId: z.string().min(1, "Patient ID is required."), // User-provided patient ID
   patientAge: z.string().min(1, "Patient age is required (e.g., 3 months, 1 year)."),
   patientGender: z.enum(["Male", "Female", "Other"], { required_error: "Gender is required." }),
   patientAddress: z.string().min(5, "Address is required."),
@@ -40,8 +44,7 @@ const patientRegistrationSchema = z.object({
   previousDiseases: z.string().optional(),
   currentMedications: z.string().optional(),
   insuranceDetails: z.string().optional(),
-  patientFiles: z.custom<FileList>().optional(), // For file input
-  patientId: z.string().min(1, "Patient ID is required."),
+  patientFiles: z.custom<FileList>().optional(),
 });
 
 type PatientRegistrationFormValues = z.infer<typeof patientRegistrationSchema>;
@@ -52,6 +55,7 @@ const defaultValues: Partial<PatientRegistrationFormValues> = {
   hospitalName: "",
   hospitalId: "",
   patientName: "",
+  patientId: "",
   patientAge: "",
   patientAddress: "",
   patientPhoneNumber: "",
@@ -59,37 +63,67 @@ const defaultValues: Partial<PatientRegistrationFormValues> = {
   previousDiseases: "",
   currentMedications: "",
   insuranceDetails: "",
-  patientId: "",
 };
 
 export function PatientRegistrationForm() {
   const { toast } = useToast();
+  const { currentUser } = useAuth(); // Get current user from AuthContext
+
   const form = useForm<PatientRegistrationFormValues>({
     resolver: zodResolver(patientRegistrationSchema),
     defaultValues,
   });
 
-  function onSubmit(data: PatientRegistrationFormValues) {
-    // Placeholder for actual submission logic
-    const formData = new FormData();
-    Object.entries(data).forEach(([key, value]) => {
-      if (key === 'patientFiles' && value) {
-        const fileList = value as FileList;
-        if (fileList.length > 0) {
-          formData.append(key, fileList[0], fileList[0].name);
-        }
-      } else if (value !== undefined) {
-        formData.append(key, String(value));
+  async function onSubmit(data: PatientRegistrationFormValues) {
+    if (!currentUser) {
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to register a patient.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const fileNames: string[] = [];
+    if (data.patientFiles && data.patientFiles.length > 0) {
+      for (let i = 0; i < data.patientFiles.length; i++) {
+        fileNames.push(data.patientFiles[i].name);
       }
-    });
-    // For demo, just logging. In real app, send formData to server.
-    console.log("Form data prepared:", Object.fromEntries(formData.entries()));
-    
-    toast({
-      title: "Patient Registration Submitted",
-      description: "Patient data has been (mock) saved.",
-    });
-    form.reset();
+    }
+
+    const patientData = {
+      ...data,
+      caregiverUid: currentUser.uid, // Associate patient with the logged-in caregiver
+      registrationDateTime: Timestamp.fromDate(new Date(`${data.registrationDate}T${data.registrationTime}`)),
+      createdAt: Timestamp.now(),
+      uploadedFileNames: fileNames, // Store names of files
+      patientFiles: undefined, // Remove original FileList from data to be stored
+    };
+    // Remove original date and time strings as we now have registrationDateTime
+    delete (patientData as any).registrationDate;
+    delete (patientData as any).registrationTime;
+
+
+    try {
+      const docRef = await addDoc(collection(db, "patients"), patientData);
+      console.log("Patient registered with ID: ", docRef.id);
+      toast({
+        title: "Patient Registration Successful",
+        description: `${data.patientName} has been registered. Firestore ID: ${docRef.id}`,
+      });
+      form.reset();
+    } catch (error: any) {
+      console.error("Error registering patient:", error);
+      let errorMessage = "Failed to register patient. Please try again.";
+      if (error.code === "firestore/permission-denied") {
+        errorMessage = "Permission denied. Please check Firestore rules.";
+      }
+      toast({
+        title: "Registration Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
   }
 
   return (
@@ -153,9 +187,22 @@ export function PatientRegistrationForm() {
             name="patientName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Patient Name</FormLabel>
+                <FormLabel>Patient Full Name</FormLabel>
                 <FormControl>
                   <Input placeholder="e.g., Baby John Doe" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+           <FormField
+            control={form.control}
+            name="patientId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Patient ID (Hospital/Clinic ID)</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g., PAT-00123" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -283,34 +330,23 @@ export function PatientRegistrationForm() {
           <FormField
             control={form.control}
             name="patientFiles"
-            render={({ field: { onChange, value, ...rest } }) => ( // Destructure to handle FileList
-              <FormItem>
-                <FormLabel>Patient Files (Optional)</FormLabel>
+            render={({ field: { onChange, value, ...rest } }) => (
+              <FormItem className="md:col-span-2">
+                <FormLabel>Patient Files (Optional, e.g., birth certificate, previous records)</FormLabel>
                 <FormControl>
-                  <Input type="file" {...rest} onChange={(e) => onChange(e.target.files)} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="patientId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Patient ID</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., PAT-001" {...field} />
+                  <Input type="file" {...rest} onChange={(e) => onChange(e.target.files)} multiple />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
-        <Button type="submit" className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground">
-          <Save className="mr-2 h-5 w-5" /> Register Patient
+        <Button type="submit" className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground" disabled={form.formState.isSubmitting || !currentUser}>
+          <Save className="mr-2 h-5 w-5" /> {form.formState.isSubmitting ? "Registering..." : "Register Patient"}
         </Button>
       </form>
     </Form>
   );
 }
+
+    

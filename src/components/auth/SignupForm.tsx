@@ -23,9 +23,9 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Stethoscope, Eye, EyeOff } from "lucide-react";
-import { auth, db } from "@/lib/firebase"; // Import Firebase auth and db instances
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore"; // Import Firestore functions
+import { auth, db } from "@/lib/firebase";
+import { createUserWithEmailAndPassword, signOut } from "firebase/auth";
+import { doc, setDoc, Timestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -64,11 +64,12 @@ export function SignupForm() {
 
   async function onSubmit(data: SignupFormValues) {
     try {
+      // Create user in Firebase Authentication
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
       const user = userCredential.user;
       console.log("User created in Auth:", user);
 
-      // Store additional user information in Firestore
+      // Store additional user information in Firestore "users" collection
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         email: data.email,
@@ -77,17 +78,21 @@ export function SignupForm() {
         career: data.career,
         address: data.address,
         hospital: data.hospital,
-        createdAt: new Date(),
+        createdAt: Timestamp.now(), // Use Firestore Timestamp
       });
-
       console.log("User data stored in Firestore");
 
+      // Sign the user out immediately after successful registration and profile creation
+      await signOut(auth);
+      console.log("User signed out after registration.");
+
       toast({
-        title: "Signup Successful",
+        title: "Account Created Successfully",
         description: "Your account has been created. Please log in.",
       });
       form.reset();
-      router.push("/login"); // Redirect to login page after successful signup
+      router.push("/login"); // Redirect to login page
+
     } catch (error: any) {
       console.error("Error signing up:", error);
       let errorMessage = "Failed to sign up. Please try again.";
@@ -206,7 +211,7 @@ export function SignupForm() {
                     type={showPassword ? "text" : "password"}
                     placeholder="********"
                     {...field}
-                    className="pr-10" // Add padding for the icon
+                    className="pr-10"
                   />
                 </FormControl>
                 <div
@@ -235,3 +240,5 @@ export function SignupForm() {
     </Form>
   );
 }
+
+    
