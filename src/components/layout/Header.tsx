@@ -2,11 +2,11 @@
 "use client";
 
 import Link from 'next/link';
-import { Menu, X, Stethoscope, LogOut, LogIn, UserPlus, LayoutDashboard } from 'lucide-react';
+import { Menu, X, Stethoscope, LogOut, LogIn, UserPlus, LayoutDashboard, User } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
-import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
+import { useAuth } from '@/contexts/AuthContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +16,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-
+import { db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import type { DocumentData } from "firebase/firestore";
 
 const Logo = () => (
   <Link href="/" className="flex items-center gap-2">
@@ -25,10 +27,61 @@ const Logo = () => (
   </Link>
 );
 
+interface UserProfile extends DocumentData {
+  role?: string;
+  fullName?: string;
+  email?: string;
+}
+
 export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const { currentUser, logout, loading } = useAuth(); // Get auth state
+  const { currentUser, logout, loading } = useAuth();
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (currentUser) {
+        try {
+          const userDocRef = doc(db, "users", currentUser.uid);
+          const userDocSnap = await getDoc(userDocRef);
+          if (userDocSnap.exists()) {
+            setUserProfile(userDocSnap.data() as UserProfile);
+          } else {
+            console.log("No such user document!");
+            setUserProfile({ email: currentUser.email }); // Fallback if profile not in Firestore
+          }
+        } catch (error) {
+          console.error("Error fetching user profile:", error);
+          setUserProfile({ email: currentUser.email }); // Fallback on error
+        }
+      } else {
+        setUserProfile(null);
+      }
+    };
+
+    if (!loading) {
+      fetchUserProfile();
+    }
+  }, [currentUser, loading]);
+
+  const getDashboardLink = (role?: string) => {
+    if (!role) return "/"; // Fallback to home or a generic dashboard
+    switch (role) {
+      case "Caregiver":
+        return "/dashboard/caregiver";
+      case "Medical Doctor":
+        return "/dashboard/doctor";
+      case "Specialist":
+        return "/dashboard/specialist";
+      default:
+        return "/";
+    }
+  };
 
   const baseNavItems = [
     { href: '/', label: 'Home' },
@@ -37,11 +90,12 @@ export function Header() {
     { href: '/help', label: 'Help' },
   ];
 
-  const navItems = currentUser
+  const dashboardHref = userProfile ? getDashboardLink(userProfile.role) : '/';
+
+  const navItems = currentUser && userProfile
     ? [
         ...baseNavItems,
-        // Placeholder for dashboard link. This will be dynamic based on role later.
-        { href: '/dashboard/caregiver', label: 'Dashboard', icon: <LayoutDashboard className="mr-2 h-4 w-4" /> }, 
+        { href: dashboardHref, label: 'Dashboard', icon: <LayoutDashboard className="mr-2 h-4 w-4" /> },
       ]
     : [
         ...baseNavItems,
@@ -49,16 +103,17 @@ export function Header() {
         { href: '/signup', label: 'Sign Up', icon: <UserPlus className="mr-2 h-4 w-4" /> },
       ];
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   const handleLogout = async () => {
     await logout();
-    setIsMobileMenuOpen(false); // Close mobile menu on logout
+    setUserProfile(null); // Clear profile on logout
+    setIsMobileMenuOpen(false);
   };
-  
-  const getAvatarFallback = (email?: string | null) => {
+
+  const getAvatarFallback = (name?: string | null, email?: string | null) => {
+    if (name) {
+      const initials = name.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
+      if (initials.length > 0) return initials;
+    }
     return email ? email.substring(0, 2).toUpperCase() : 'U';
   };
 
@@ -68,7 +123,7 @@ export function Header() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-16 max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Logo />
-           <div className="h-8 w-8"></div> {/* Placeholder for button/menu */}
+           <div className="h-8 w-8 bg-muted rounded-full animate-pulse"></div> {/* Placeholder for avatar/menu */}
         </div>
       </header>
     );
@@ -81,7 +136,7 @@ export function Header() {
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex gap-4 items-center">
-          {navItems.filter(item => item.label !== 'Login' && item.label !== 'Sign Up' && item.label !== 'Dashboard').map((item) => ( // Exclude auth/dashboard links here
+          {baseNavItems.map((item) => (
             <Link
               key={item.label}
               href={item.href}
@@ -90,22 +145,21 @@ export function Header() {
               {item.label}
             </Link>
           ))}
-          {!loading && currentUser && (
+          {!loading && currentUser && userProfile && (
              <Link
-              href="/dashboard/caregiver" // Placeholder, will be dynamic
+              href={dashboardHref}
               className="text-sm font-medium text-foreground/70 transition-colors hover:text-foreground flex items-center"
             >
               <LayoutDashboard className="mr-1 h-4 w-4" /> Dashboard
             </Link>
           )}
-          {!loading && currentUser ? (
+          {!loading && currentUser && userProfile ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    {/* Placeholder for user avatar image if available */}
-                    {/* <AvatarImage src={currentUser.photoURL || "https://placehold.co/40x40.png"} alt={currentUser.displayName || currentUser.email || "User"} /> */}
-                    <AvatarFallback>{getAvatarFallback(currentUser.email)}</AvatarFallback>
+                    {/* <AvatarImage src={currentUser.photoURL || "https://placehold.co/40x40.png"} alt={userProfile.fullName || currentUser.email || "User"} /> */}
+                    <AvatarFallback>{getAvatarFallback(userProfile.fullName, currentUser.email)}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
@@ -113,7 +167,7 @@ export function Header() {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
-                      {currentUser.displayName || currentUser.email?.split('@')[0]}
+                      {userProfile.fullName || currentUser.email?.split('@')[0]}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground">
                       {currentUser.email}
@@ -121,20 +175,18 @@ export function Header() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {/* <DropdownMenuItem asChild>
-                  <Link href="/dashboard/profile"> <User className="mr-2 h-4 w-4" /> Profile </Link>
-                </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/dashboard/settings"> <Settings className="mr-2 h-4 w-4" /> Settings </Link>
+                  <Link href={dashboardHref}> <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard </Link>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator /> */}
+                {/* Add profile/settings links here if needed later */}
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" />
                   Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          ) : !loading && (
+          ) : !loading ? (
             <>
               <Button variant="ghost" asChild>
                 <Link href="/login">Login</Link>
@@ -143,17 +195,19 @@ export function Header() {
                 <Link href="/signup">Sign Up</Link>
               </Button>
             </>
+          ) : (
+            <div className="h-8 w-8 bg-muted rounded-full animate-pulse"></div>
           )}
         </nav>
 
         {/* Mobile Navigation */}
         <div className="md:hidden">
-          {!loading && currentUser ? (
+          {!loading && currentUser && userProfile ? (
              <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarFallback>{getAvatarFallback(currentUser.email)}</AvatarFallback>
+                    <AvatarFallback>{getAvatarFallback(userProfile.fullName, currentUser.email)}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
@@ -161,7 +215,7 @@ export function Header() {
                  <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
-                      {currentUser.displayName || currentUser.email?.split('@')[0]}
+                      {userProfile.fullName || currentUser.email?.split('@')[0]}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground">
                       {currentUser.email}
@@ -169,20 +223,27 @@ export function Header() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {navItems.map((item) => (
+                {/* Iterate through base items first */}
+                {baseNavItems.map((item) => (
                   <DropdownMenuItem key={item.label} asChild>
                     <Link href={item.href} onClick={() => setIsMobileMenuOpen(false)}>
-                      {item.icon} {item.label}
+                       {/* Add icons if you have them for base items here */} {item.label}
                     </Link>
                   </DropdownMenuItem>
                 ))}
+                {/* Dashboard link */}
+                 <DropdownMenuItem asChild>
+                    <Link href={dashboardHref} onClick={() => setIsMobileMenuOpen(false)}>
+                      <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
+                    </Link>
+                  </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" /> Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          ) : (
+          ) : !loading ? (
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -202,7 +263,7 @@ export function Header() {
                     </SheetClose>
                   </div>
                   <nav className="flex flex-col gap-4">
-                    {navItems.map((item) => (
+                    {navItems.map((item) => ( // navItems already filters for auth state
                       <SheetClose asChild key={item.label}>
                         <Link
                           href={item.href}
@@ -217,9 +278,13 @@ export function Header() {
                 </div>
               </SheetContent>
             </Sheet>
+          ) : (
+             <div className="h-8 w-8 bg-muted rounded-full animate-pulse"></div>
           )}
         </div>
       </div>
     </header>
   );
 }
+
+    
