@@ -23,6 +23,9 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Stethoscope } from "lucide-react";
+import { auth } from "@/lib/firebase"; // Import Firebase auth instance
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { useRouter } from "next/navigation";
 
 const signupFormSchema = z.object({
   role: z.enum(["Caregiver", "Specialist", "Medical Doctor"], {
@@ -50,23 +53,37 @@ const defaultValues: Partial<SignupFormValues> = {
 
 export function SignupForm() {
   const { toast } = useToast();
+  const router = useRouter();
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupFormSchema),
     defaultValues,
   });
 
-  function onSubmit(data: SignupFormValues) {
-    // Placeholder for actual signup logic
-    console.log(data);
-    toast({
-      title: "Signup Submitted",
-      description: (
-        <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-          <code className="text-white">{JSON.stringify(data, null, 2)}</code>
-        </pre>
-      ),
-    });
-    form.reset(); // Reset form after submission
+  async function onSubmit(data: SignupFormValues) {
+    try {
+      // For now, we are only creating the user in Firebase Auth.
+      // Storing role, career, etc., in Firestore would be a next step.
+      const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+      console.log("User created:", userCredential.user);
+      toast({
+        title: "Signup Successful",
+        description: "Your account has been created. Please log in.",
+      });
+      // TODO: In a future step, store data.role, data.career, etc., in Firestore user profile
+      form.reset();
+      router.push("/login"); // Redirect to login page after successful signup
+    } catch (error: any) {
+      console.error("Error signing up:", error);
+      let errorMessage = "Failed to sign up. Please try again.";
+      if (error.code === "auth/email-already-in-use") {
+        errorMessage = "This email address is already in use.";
+      }
+      toast({
+        title: "Signup Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
   }
 
   return (
@@ -172,8 +189,8 @@ export function SignupForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-          <Stethoscope className="mr-2 h-5 w-5" /> Sign Up
+        <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={form.formState.isSubmitting}>
+          {form.formState.isSubmitting ? "Signing up..." : <><Stethoscope className="mr-2 h-5 w-5" /> Sign Up</>}
         </Button>
       </form>
     </Form>

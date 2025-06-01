@@ -17,10 +17,13 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { LogIn } from "lucide-react";
+import { auth } from "@/lib/firebase"; // Import Firebase auth instance
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { useRouter } from "next/navigation";
 
 const loginFormSchema = z.object({
   email: z.string().email("Invalid email address."),
-  password: z.string().min(1, "Password is required."), // Simplified for UI demo
+  password: z.string().min(1, "Password is required."),
 });
 
 type LoginFormValues = z.infer<typeof loginFormSchema>;
@@ -32,23 +35,35 @@ const defaultValues: Partial<LoginFormValues> = {
 
 export function LoginForm() {
   const { toast } = useToast();
+  const router = useRouter();
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
     defaultValues,
   });
 
-  function onSubmit(data: LoginFormValues) {
-    // Placeholder for actual login logic
-    console.log(data);
-    toast({
-      title: "Login Attempted",
-      description: (
-        <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-          <code className="text-white">{JSON.stringify(data, null, 2)}</code>
-        </pre>
-      ),
-    });
-    // In a real app, you would redirect on success
+  async function onSubmit(data: LoginFormValues) {
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+      console.log("User signed in:", userCredential.user);
+      toast({
+        title: "Login Successful",
+        description: "Welcome back!",
+      });
+      // TODO: Implement role-based redirection based on user's role from Firestore.
+      // For now, redirecting to homepage.
+      router.push("/"); 
+    } catch (error: any) {
+      console.error("Error signing in:", error);
+      let errorMessage = "Failed to log in. Please check your credentials.";
+      if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
+        errorMessage = "Invalid email or password.";
+      }
+      toast({
+        title: "Login Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
   }
 
   return (
@@ -80,8 +95,8 @@ export function LoginForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-          <LogIn className="mr-2 h-5 w-5" /> Log In
+        <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={form.formState.isSubmitting}>
+          {form.formState.isSubmitting ? "Logging in..." : <><LogIn className="mr-2 h-5 w-5" /> Log In</>}
         </Button>
         <p className="text-center text-sm text-muted-foreground">
           Don&apos;t have an account?{' '}
