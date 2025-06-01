@@ -16,12 +16,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
-import { LogIn } from "lucide-react";
-import { auth, db } from "@/lib/firebase"; // Import Firebase auth and db instances
+import { LogIn, Eye, EyeOff } from "lucide-react";
+import { auth, db } from "@/lib/firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore"; // Import Firestore functions
+import { doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
+// import { useAuth } from "@/contexts/AuthContext"; // We might not need to manually set currentUser here if AuthContext handles it
+import { useState } from "react";
 
 
 const loginFormSchema = z.object({
@@ -39,6 +40,7 @@ const defaultValues: Partial<LoginFormValues> = {
 export function LoginForm() {
   const { toast } = useToast();
   const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
   // const { setCurrentUser } = useAuth(); // We might not need to manually set currentUser here if AuthContext handles it
   
   const form = useForm<LoginFormValues>({
@@ -128,9 +130,30 @@ export function LoginForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Password</FormLabel>
-              <FormControl>
-                <Input type="password" placeholder="********" {...field} />
-              </FormControl>
+              <div className="relative">
+                <FormControl>
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="********"
+                    {...field}
+                    className="pr-10" // Add padding for the icon
+                  />
+                </FormControl>
+                <div
+                  className="absolute inset-y-0 right-0 flex cursor-pointer items-center pr-3 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPassword(!showPassword)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setShowPassword(!showPassword); }}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </div>
+              </div>
               <FormMessage />
             </FormItem>
           )}
