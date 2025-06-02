@@ -69,8 +69,8 @@ export default function ViewPatientsPage() {
 
   const getStatusBadgeVariant = (status: string) => {
     if (status === 'Pending Doctor Review') return 'destructive';
-    if (status === 'Reviewed by Doctor') return 'secondary'; // Or some other variant like 'warning'
-    if (status === 'Specialist Feedback Provided') return 'default'; // Green
+    if (status === 'Reviewed by Doctor') return 'secondary'; 
+    if (status === 'Specialist Feedback Provided') return 'default'; 
     return 'outline';
   };
 
@@ -139,11 +139,10 @@ export default function ViewPatientsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      {/* Placeholder for view details link. In a real app, this would link to a patient detail page. */}
-                      <Button variant="outline" size="sm" disabled> 
-                        {/* <Link href={`/dashboard/caregiver/patient/${patient.patientId}`}> */}
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/dashboard/caregiver/patient/${patient.id}`}>
                           <Eye className="mr-1 h-4 w-4" /> View Details
-                        {/* </Link> */}
+                        </Link>
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -156,5 +155,4 @@ export default function ViewPatientsPage() {
     </div>
   );
 }
-
     

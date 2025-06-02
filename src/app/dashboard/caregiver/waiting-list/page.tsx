@@ -4,7 +4,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Clock, AlertTriangle, Eye } from 'lucide-react'; // Changed ClockHistory to Clock
+import { ArrowLeft, Clock, AlertTriangle, Eye } from 'lucide-react'; 
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
@@ -20,7 +20,6 @@ interface Patient {
   patientId: string; 
   patientAge: string;
   registrationDateTime: Timestamp;
-  // feedbackStatus should always be 'Pending Doctor Review' for this list
 }
 
 export default function WaitingListPage() {
@@ -78,7 +77,7 @@ export default function WaitingListPage() {
         </Link>
       </Button>
       <div className="flex items-center gap-3 mb-6">
-        <Clock className="h-8 w-8 text-primary" /> {/* Changed ClockHistory to Clock */}
+        <Clock className="h-8 w-8 text-primary" /> 
         <h1 className="text-3xl font-headline">Patient Waiting List</h1>
       </div>
       <Card className="shadow-xl">
@@ -132,11 +131,10 @@ export default function WaitingListPage() {
                       <Badge variant="destructive">Pending Doctor Review</Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      {/* Placeholder for view details. Actual link would go to a patient detail page */}
-                      <Button variant="outline" size="sm" disabled>
-                        {/* <Link href={`/dashboard/caregiver/patient/${patient.patientId}`}> */}
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/dashboard/caregiver/patient/${patient.id}`}>
                           <Eye className="mr-1 h-4 w-4" /> View Details
-                        {/* </Link> */}
+                        </Link>
                       </Button>
                     </TableCell>
                   </TableRow>
