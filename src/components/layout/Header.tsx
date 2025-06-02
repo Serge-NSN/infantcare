@@ -19,7 +19,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import type { DocumentData } from "firebase/firestore";
-import { getDashboardLink } from '@/lib/utils/getDashboardLink'; // Ensure this path is correct
+import { getDashboardLink } from '@/lib/utils/getDashboardLink'; 
 
 const Logo = () => (
   <Link href="/" className="flex items-center gap-2">
@@ -39,7 +39,7 @@ interface NavItem {
   label: string;
   icon?: React.ComponentType<{ className?: string }>;
   mobileIcon?: React.ReactElement;
-  roles?: string[]; // Optional: specify which roles see this link
+  roles?: string[]; 
 }
 
 
@@ -65,7 +65,6 @@ export function Header() {
           if (userDocSnap.exists()) {
             const profileData = userDocSnap.data() as UserProfile;
             setUserProfile(profileData);
-            // Store/update localStorage on profile fetch too for consistency
              if (typeof window !== 'undefined') {
                 localStorage.setItem('userRole', profileData.role || '');
                 localStorage.setItem('userFullName', profileData.fullName || currentUser.email || 'User');
@@ -74,7 +73,6 @@ export function Header() {
           } else {
             console.log("No such user document! Logging out for safety.");
             setUserProfile({ email: currentUser.email }); 
-            // If profile missing, user might be in inconsistent state, consider logout
             await logout();
           }
         } catch (error: any) {
@@ -82,7 +80,6 @@ export function Header() {
           setUserProfile({ email: currentUser.email }); 
           if (error.code === "unavailable" || error.message?.includes("client is offline")) {
              console.warn("Firestore is offline. User profile might be stale or unavailable.");
-             // Attempt to load from localStorage if offline
             if (typeof window !== 'undefined') {
                 const storedRole = localStorage.getItem('userRole');
                 const storedFullName = localStorage.getItem('userFullName');
@@ -92,7 +89,6 @@ export function Header() {
                 }
             }
           } else {
-            // For other errors, possibly log out
              await logout();
           }
         } finally {
@@ -116,27 +112,32 @@ export function Header() {
 
   const dashboardHref = userProfile ? getDashboardLink(userProfile.role) : '/login';
 
-  const commonNavItems: NavItem[] = [
+  // Common Nav items visible to unauthenticated users or specific general items
+  const unauthenticatedNavItems: NavItem[] = [
+    { href: '/', label: 'Home', icon: LayoutDashboard /* Home icon substitute */, mobileIcon: <LayoutDashboard className="mr-2 h-4 w-4" /> },
     { href: '/education', label: 'Education', icon: BookOpen, mobileIcon: <BookOpen className="mr-2 h-4 w-4" /> },
     { href: '/contact', label: 'Contact', icon: Mail, mobileIcon: <Mail className="mr-2 h-4 w-4" /> },
     { href: '/help', label: 'Help', icon: HelpCircle, mobileIcon: <HelpCircle className="mr-2 h-4 w-4" /> },
   ];
-
-  let currentNavItems: NavItem[] = [];
-  if (currentUser && userProfile) {
-    currentNavItems.push({ href: dashboardHref, label: 'Dashboard', icon: LayoutDashboard, mobileIcon: <LayoutDashboard className="mr-2 h-4 w-4" /> });
-    if (userProfile.role === 'Caregiver') {
-      currentNavItems.push(
-        { href: '/dashboard/caregiver/add-patient', label: 'Add Patient', icon: PlusCircle, mobileIcon: <PlusCircle className="mr-2 h-4 w-4" /> },
-        { href: '/dashboard/caregiver/view-patients', label: 'View Patients', icon: ListOrdered, mobileIcon: <ListOrdered className="mr-2 h-4 w-4" /> }
-      );
-    }
-    // Add role-specific links for 'Medical Doctor' and 'Specialist' here if needed
-    currentNavItems.push(...commonNavItems);
-  } else {
-    currentNavItems.push({ href: '/', label: 'Home', icon: LayoutDashboard /* Home icon substitute */, mobileIcon: <LayoutDashboard className="mr-2 h-4 w-4" /> });
-    currentNavItems.push(...commonNavItems);
+  
+  const authenticatedBaseNavItems: NavItem[] = [
+     { href: dashboardHref, label: 'Dashboard', icon: LayoutDashboard, mobileIcon: <LayoutDashboard className="mr-2 h-4 w-4" /> },
+  ];
+  
+  if (currentUser && userProfile?.role === 'Caregiver') {
+    authenticatedBaseNavItems.push(
+      { href: '/dashboard/caregiver/add-patient', label: 'Add Patient', icon: PlusCircle, mobileIcon: <PlusCircle className="mr-2 h-4 w-4" /> },
+      { href: '/dashboard/caregiver/view-patients', label: 'View Patients', icon: ListOrdered, mobileIcon: <ListOrdered className="mr-2 h-4 w-4" /> }
+    );
   }
+  // Add other role-specific links here for 'Medical Doctor' and 'Specialist' if needed
+
+  // Always add Help for authenticated users
+  if (currentUser) {
+    authenticatedBaseNavItems.push({ href: '/help', label: 'Help', icon: HelpCircle, mobileIcon: <HelpCircle className="mr-2 h-4 w-4" /> });
+  }
+
+  const currentNavItems: NavItem[] = currentUser ? authenticatedBaseNavItems : unauthenticatedNavItems;
   
   const mobileAuthLinks: NavItem[] = [
     { href: '/login', label: 'Login', mobileIcon: <LogIn className="mr-2 h-4 w-4" /> },
@@ -145,9 +146,7 @@ export function Header() {
   
   const handleLogout = async () => {
     await logout();
-    // userProfile will be set to null by useEffect hook listening to currentUser
     setIsMobileMenuOpen(false);
-    // Explicitly clear localStorage on logout
     if (typeof window !== 'undefined') {
         localStorage.removeItem('userRole');
         localStorage.removeItem('userFullName');
@@ -156,7 +155,7 @@ export function Header() {
   };
 
   const getAvatarFallback = (name?: string | null, email?: string | null) => {
-    if (name && name !== email) { // Check if name is not just the email
+    if (name && name !== email) { 
       const initials = name.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
       if (initials.length > 0) return initials;
     }
@@ -166,7 +165,7 @@ export function Header() {
   const isLoading = authLoading || (!currentUser && !authLoading && mounted === false) || (currentUser && profileLoading);
 
 
-  if (!mounted) { // Prevents SSR/hydration mismatch for dynamic content
+  if (!mounted) { 
     return (
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-16 max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -199,7 +198,7 @@ export function Header() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full ml-2">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={undefined} /> {/* placeholder for actual avatar image if any */}
+                    <AvatarImage src={undefined} /> 
                     <AvatarFallback>{getAvatarFallback(userProfile.fullName, currentUser.email)}</AvatarFallback>
                   </Avatar>
                 </Button>
