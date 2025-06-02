@@ -4,29 +4,28 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
-import Image from 'next/image'; // Ensure Next Image is imported
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, Timestamp } from 'firebase/firestore';
-import { ArrowLeft, UserCircle, Hospital, CalendarDays, Stethoscope, Microscope, FileText as FileIcon, Edit, AlertTriangle, Info } from 'lucide-react'; // Renamed FileText to FileIcon for clarity
+import { ArrowLeft, UserCircle, Hospital, CalendarDays, Stethoscope, Microscope, FileText as FileIcon, Edit, AlertTriangle, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'; // Ensure Tooltip components are imported
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface PatientData {
   id: string;
   patientName: string;
-  patientId: string; 
+  patientId: string;
   patientAge: string;
   patientGender: string;
   patientAddress: string;
   patientPhoneNumber: string;
   patientReligion?: string;
   hospitalName: string;
-  hospitalId: string; 
+  hospitalId: string;
   previousDiseases?: string;
   currentMedications?: string;
   insuranceDetails?: string;
@@ -100,7 +99,7 @@ export default function CaregiverPatientDetailPage() {
             <Skeleton className="h-6 w-1/2" />
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[...Array(8)].map((_, i) => ( // Increased skeleton items
+            {[...Array(8)].map((_, i) => (
               <div key={i} className="space-y-2">
                 <Skeleton className="h-5 w-1/3" />
                 <Skeleton className="h-5 w-2/3" />
@@ -230,12 +229,16 @@ export default function CaregiverPatientDetailPage() {
               {patient.uploadedFileNames && patient.uploadedFileNames.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                   {patient.uploadedFileNames.map((fileName, index) => {
-                    const isImageFile = /\.(jpe?g|png|gif|webp)$/i.test(fileName);
+                    // DEBUGGING: Check the filename and result of isImageFile
+                    // console.log(`DEBUG: Checking file: '${fileName}', type: ${typeof fileName}`);
+                    const isImageFile = typeof fileName === 'string' && /\.(jpe?g|png|gif|webp)$/i.test(fileName);
+                    // console.log(`DEBUG: Is '${fileName}' an image? ${isImageFile}`);
+                    
                     return (
                       <div key={index} className="flex flex-col items-center text-center p-2 border rounded-md bg-background shadow-sm">
                         {isImageFile ? (
                           <Image
-                            src={`https://placehold.co/150x150.png`} 
+                            src={`https://placehold.co/100x100.png`} 
                             alt={fileName || 'Uploaded image'}
                             width={100}
                             height={100}
@@ -274,5 +277,4 @@ export default function CaregiverPatientDetailPage() {
     </div>
   );
 }
-
     
