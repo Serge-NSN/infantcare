@@ -4,7 +4,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, ClockHistory, AlertTriangle, Eye } from 'lucide-react';
+import { ArrowLeft, Clock, AlertTriangle, Eye } from 'lucide-react'; // Changed ClockHistory to Clock
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
@@ -78,7 +78,7 @@ export default function WaitingListPage() {
         </Link>
       </Button>
       <div className="flex items-center gap-3 mb-6">
-        <ClockHistory className="h-8 w-8 text-primary" />
+        <Clock className="h-8 w-8 text-primary" /> {/* Changed ClockHistory to Clock */}
         <h1 className="text-3xl font-headline">Patient Waiting List</h1>
       </div>
       <Card className="shadow-xl">
@@ -149,6 +149,3 @@ export default function WaitingListPage() {
     </div>
   );
 }
-
-
-    

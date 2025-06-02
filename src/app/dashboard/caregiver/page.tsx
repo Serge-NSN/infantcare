@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getCountFromServer } from 'firebase/firestore';
-import { BarChart3, ListChecks, PlusCircle, Users, AlertTriangle, ClockHistory } from 'lucide-react';
+import { BarChart3, PlusCircle, Users, AlertTriangle, Clock } from 'lucide-react'; // Changed ClockHistory to Clock
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -110,7 +110,7 @@ export default function CaregiverDashboardPage() {
             <CardHeader>
               <CardTitle className="text-xl font-headline flex items-center justify-between">
                 Waiting List
-                <ClockHistory className="h-6 w-6 text-muted-foreground" />
+                <Clock className="h-6 w-6 text-muted-foreground" /> {/* Changed ClockHistory to Clock */}
               </CardTitle>
               <CardDescription>Patients pending doctor review.</CardDescription>
             </CardHeader>
