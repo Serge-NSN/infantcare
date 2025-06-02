@@ -1,6 +1,7 @@
 
 "use client";
 
+import * as React from 'react'; // Added React import
 import { Button, type ButtonProps } from "@/components/ui/button";
 import type { LucideIcon } from "lucide-react";
 
