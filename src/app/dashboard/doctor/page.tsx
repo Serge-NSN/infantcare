@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { Users, Eye, BarChart3, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp, orderBy } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -31,9 +31,8 @@ export default function DoctorDashboardPage() {
   useEffect(() => {
     async function fetchPatientsForReview() {
       if (authLoading || !currentUser) {
-         // Wait for auth state to resolve or if no user, don't fetch.
         if(!currentUser && !authLoading) {
-            setLoading(false); // Not logged in, stop loading
+            setLoading(false); 
         }
         return;
       }
@@ -42,9 +41,11 @@ export default function DoctorDashboardPage() {
       setError(null);
       try {
         const patientsCollectionRef = collection(db, 'patients');
-        // Query for patients pending doctor review. 
-        // Later, this could be refined if doctors are assigned to specific patients or hospitals.
-        const q = query(patientsCollectionRef, where('feedbackStatus', '==', 'Pending Doctor Review'));
+        const q = query(
+          patientsCollectionRef, 
+          where('feedbackStatus', '==', 'Pending Doctor Review'),
+          orderBy('registrationDateTime', 'desc') // Sorting by newest first
+        );
         
         const querySnapshot = await getDocs(q);
         const fetchedPatients: PatientForDoctorList[] = querySnapshot.docs.map(doc => {
@@ -57,14 +58,19 @@ export default function DoctorDashboardPage() {
             feedbackStatus: data.feedbackStatus,
           } as PatientForDoctorList;
         });
-        setPatients(fetchedPatients.sort((a, b) => b.registrationDateTime.toMillis() - a.registrationDateTime.toMillis())); // Show newest first
+        setPatients(fetchedPatients); 
       } catch (err: any) {
-        console.error("Error fetching patients for doctor review:", err);
-        let specificError = "Could not load patient list for review. Please try again later.";
+        console.error("Error fetching patients for doctor review (full object):", err);
+        console.error("Error code:", err.code); 
+        console.error("Error message:", err.message); 
+
+        let specificError = "Could not load patient list for review. Please try again later. Check the browser console for more details from Firestore.";
         if (err.code === "unavailable" || err.message?.includes("client is offline")) {
           specificError = "Could not load patients: Database is offline. Please check your internet connection.";
         } else if (err.code === "failed-precondition") {
-          specificError = "Could not load patients: This may indicate a missing database index. Please check Firestore console for 'patients' collection (feedbackStatus ASC, registrationDateTime DESC).";
+          specificError = "Could not load patients: This most likely means a required Firestore index is missing. Please check your browser's developer console for a link to create the index in your Firebase project, or create it manually in Firestore. The index should be on the 'patients' collection, with fields: feedbackStatus (Ascending) AND registrationDateTime (Descending).";
+        } else if (err.code === "permission-denied") {
+            specificError = "Could not load patients: Permission denied. Please check your Firestore security rules to ensure doctors can read the 'patients' collection with the applied filters.";
         }
         setError(specificError);
       } finally {
@@ -161,3 +167,4 @@ export default function DoctorDashboardPage() {
     </div>
   );
 }
+
