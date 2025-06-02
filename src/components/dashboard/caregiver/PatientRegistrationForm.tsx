@@ -25,15 +25,14 @@ import {
 import { MedicalTermInput } from "@/components/shared/MedicalTermInput";
 import { useToast } from "@/hooks/use-toast";
 import { Save } from "lucide-react";
-import { auth, db } from "@/lib/firebase";
-import { collection, addDoc, Timestamp, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase"; // auth removed as currentUser comes from useAuth
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext"; 
-import { v4 as uuidv4 } from 'uuid'; // For generating unique patient IDs
+import { v4 as uuidv4 } from 'uuid';
 
-// Schema updated: removed registrationDate, registrationTime, patientId
 const patientRegistrationSchema = z.object({
   hospitalName: z.string().min(2, "Hospital name is required."),
-  hospitalId: z.string().min(1, "Hospital ID is required."), // Caregiver inputs this specific ID from the hospital
+  hospitalId: z.string().min(1, "Hospital ID is required."),
   patientName: z.string().min(2, "Patient name is required."),
   patientAge: z.string().min(1, "Patient age is required (e.g., 3 months, 1 year)."),
   patientGender: z.enum(["Male", "Female", "Other"], { required_error: "Gender is required." }),
@@ -53,7 +52,6 @@ const defaultValues: Partial<PatientRegistrationFormValues> = {
   hospitalId: "",
   patientName: "",
   patientAge: "",
-  // patientGender: undefined, // Will be selected
   patientAddress: "",
   patientPhoneNumber: "",
   patientReligion: "",
@@ -84,25 +82,24 @@ export function PatientRegistrationForm() {
     const fileNames: string[] = [];
     if (data.patientFiles && data.patientFiles.length > 0) {
       for (let i = 0; i < data.patientFiles.length; i++) {
-        // In a real app, you'd upload files to Firebase Storage here and store URLs/references
         fileNames.push(data.patientFiles[i].name);
       }
     }
 
-    // Auto-generate patientId and registrationDateTime
     const generatedPatientId = `PAT-${uuidv4().substring(0, 8).toUpperCase()}`;
-    const registrationDateTime = serverTimestamp(); // Use server timestamp for consistency
+    const registrationDateTime = serverTimestamp();
 
     const patientData: any = {
       ...data,
-      patientId: generatedPatientId, // Add auto-generated patientId
+      patientId: generatedPatientId,
       caregiverUid: currentUser.uid, 
       registrationDateTime: registrationDateTime,
-      createdAt: serverTimestamp(), // For record creation tracking
+      feedbackStatus: 'Pending Doctor Review', // Initial feedback status
+      createdAt: serverTimestamp(),
       uploadedFileNames: fileNames, 
     };
     
-    delete patientData.patientFiles; // Remove FileList object before saving
+    delete patientData.patientFiles; 
 
     try {
       const docRef = await addDoc(collection(db, "patients"), patientData);
@@ -111,7 +108,7 @@ export function PatientRegistrationForm() {
         title: "Patient Registration Successful",
         description: `${data.patientName} (ID: ${generatedPatientId}) has been registered.`,
       });
-      form.reset(); // Reset form to default values
+      form.reset(); 
     } catch (error: any) {
       console.error("Error registering patient:", error);
       let errorMessage = "Failed to register patient. Please try again.";
@@ -120,6 +117,8 @@ export function PatientRegistrationForm() {
       } else if (error.message && error.message.includes("Unsupported field value")) {
          errorMessage = "Failed to register patient due to an invalid data field. Please check your inputs.";
          console.error("Offending data for Firestore:", patientData);
+      } else if (error.code === "unavailable" || error.message?.includes("client is offline")) {
+        errorMessage = "Failed to register patient: Could not connect to the database. Please check your internet connection.";
       }
       toast({
         title: "Registration Failed",
@@ -133,7 +132,6 @@ export function PatientRegistrationForm() {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Removed registrationDate and registrationTime fields */}
           <FormField
             control={form.control}
             name="hospitalName"
@@ -173,7 +171,6 @@ export function PatientRegistrationForm() {
               </FormItem>
             )}
           />
-           {/* Removed patientId field - will be auto-generated */}
           <FormField
             control={form.control}
             name="patientAge"
@@ -296,7 +293,7 @@ export function PatientRegistrationForm() {
           <FormField
             control={form.control}
             name="patientFiles"
-            render={({ field: { onChange, value, ...rest } }) => ( // 'value' is part of field, keep it for controlled component if needed, but we mostly care about onChange
+            render={({ field: { onChange, value, ...rest } }) => ( 
               <FormItem className="md:col-span-2">
                 <FormLabel>Patient Files (Optional, e.g., birth certificate, previous records)</FormLabel>
                 <FormControl>
@@ -314,3 +311,5 @@ export function PatientRegistrationForm() {
     </Form>
   );
 }
+
+    

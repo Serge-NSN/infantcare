@@ -1,3 +1,4 @@
+
 // src/app/dashboard/caregiver/page.tsx
 "use client";
 
@@ -5,15 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs,getCountFromServer } from 'firebase/firestore';
-import { BarChart3, ListChecks, PlusCircle, Users, AlertTriangle } from 'lucide-react';
+import { collection, query, where, getCountFromServer } from 'firebase/firestore';
+import { BarChart3, ListChecks, PlusCircle, Users, AlertTriangle, ClockHistory } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface PatientStats {
   totalPatients: number;
-  // waitingListCount: number; // Placeholder for future
+  waitingListCount: number;
 }
 
 export default function CaregiverDashboardPage() {
@@ -28,20 +29,36 @@ export default function CaregiverDashboardPage() {
         setLoading(false);
         return;
       }
+      setLoading(true);
+      setError(null);
       try {
         const patientsCollectionRef = collection(db, 'patients');
-        const q = query(patientsCollectionRef, where('caregiverUid', '==', currentUser.uid));
         
-        const snapshot = await getCountFromServer(q);
-        const totalPatients = snapshot.data().count;
+        // Query for total patients
+        const totalPatientsQuery = query(patientsCollectionRef, where('caregiverUid', '==', currentUser.uid));
+        const totalSnapshot = await getCountFromServer(totalPatientsQuery);
+        const totalPatients = totalSnapshot.data().count;
+
+        // Query for waiting list patients
+        const waitingListQuery = query(
+          patientsCollectionRef, 
+          where('caregiverUid', '==', currentUser.uid),
+          where('feedbackStatus', '==', 'Pending Doctor Review')
+        );
+        const waitingSnapshot = await getCountFromServer(waitingListQuery);
+        const waitingListCount = waitingSnapshot.data().count;
 
         setStats({
           totalPatients,
-          // waitingListCount: 0 // Implement later
+          waitingListCount,
         });
       } catch (err: any) {
         console.error("Error fetching patient stats:", err);
-        setError("Could not load patient statistics. Please try again later.");
+        let specificError = "Could not load patient statistics. Please try again later.";
+        if (err.code === "unavailable" || err.message?.includes("client is offline")) {
+          specificError = "Could not load statistics: Database is offline. Please check your internet connection.";
+        }
+        setError(specificError);
       } finally {
         setLoading(false);
       }
@@ -70,7 +87,7 @@ export default function CaregiverDashboardPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="text-xl font-headline flex items-center justify-between">
@@ -87,22 +104,25 @@ export default function CaregiverDashboardPage() {
             )}
           </CardContent>
         </Card>
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-xl font-headline flex items-center justify-between">
-              Waiting List (Coming Soon)
-              <ListChecks className="h-6 w-6 text-muted-foreground" />
-            </CardTitle>
-             <CardDescription>Patients needing immediate attention.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Skeleton className="h-10 w-1/4" />
-            ) : (
-              <p className="text-4xl font-bold">0</p> 
-            )}
-             <p className="text-xs text-muted-foreground mt-2">This feature is under development.</p>
-          </CardContent>
+        
+        <Card className="shadow-lg hover:shadow-xl transition-shadow">
+          <Link href="/dashboard/caregiver/waiting-list" className="block h-full">
+            <CardHeader>
+              <CardTitle className="text-xl font-headline flex items-center justify-between">
+                Waiting List
+                <ClockHistory className="h-6 w-6 text-muted-foreground" />
+              </CardTitle>
+              <CardDescription>Patients pending doctor review.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <Skeleton className="h-10 w-1/4" />
+              ) : (
+                <p className="text-4xl font-bold">{stats?.waitingListCount ?? 0}</p>
+              )}
+              <p className="text-xs text-primary hover:underline mt-2">View Waiting List &rarr;</p>
+            </CardContent>
+          </Link>
         </Card>
       </div>
 
@@ -127,3 +147,5 @@ export default function CaregiverDashboardPage() {
     </div>
   );
 }
+
+    

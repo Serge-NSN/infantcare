@@ -1,10 +1,10 @@
 
-// src/app/dashboard/caregiver/view-patients/page.tsx
-"use client"; 
+// src/app/dashboard/caregiver/waiting-list/page.tsx
+"use client";
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Users, AlertTriangle, Eye } from 'lucide-react';
+import { ArrowLeft, ClockHistory, AlertTriangle, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
@@ -19,18 +19,18 @@ interface Patient {
   patientName: string;
   patientId: string; 
   patientAge: string;
-  registrationDateTime: Timestamp; 
-  feedbackStatus: string;
+  registrationDateTime: Timestamp;
+  // feedbackStatus should always be 'Pending Doctor Review' for this list
 }
 
-export default function ViewPatientsPage() {
+export default function WaitingListPage() {
   const { currentUser } = useAuth();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchPatients() {
+    async function fetchWaitingListPatients() {
       if (!currentUser) {
         setLoading(false);
         return;
@@ -39,7 +39,11 @@ export default function ViewPatientsPage() {
       setError(null);
       try {
         const patientsCollectionRef = collection(db, 'patients');
-        const q = query(patientsCollectionRef, where('caregiverUid', '==', currentUser.uid));
+        const q = query(
+          patientsCollectionRef, 
+          where('caregiverUid', '==', currentUser.uid),
+          where('feedbackStatus', '==', 'Pending Doctor Review')
+        );
         const querySnapshot = await getDocs(q);
         const fetchedPatients: Patient[] = querySnapshot.docs.map(doc => {
           const data = doc.data();
@@ -49,31 +53,22 @@ export default function ViewPatientsPage() {
             patientId: data.patientId,
             patientAge: data.patientAge,
             registrationDateTime: data.registrationDateTime,
-            feedbackStatus: data.feedbackStatus || 'N/A', // Fallback if status is missing
           } as Patient;
         });
         setPatients(fetchedPatients);
       } catch (err: any) {
-        console.error("Error fetching patients:", err);
-        let specificError = "Could not load patient list. Please try again later.";
+        console.error("Error fetching waiting list patients:", err);
+        let specificError = "Could not load waiting list. Please try again later.";
         if (err.code === "unavailable" || err.message?.includes("client is offline")) {
-          specificError = "Could not load patients: Database is offline. Please check your internet connection.";
+          specificError = "Could not load waiting list: Database is offline. Please check your internet connection.";
         }
         setError(specificError);
       } finally {
         setLoading(false);
       }
     }
-    fetchPatients();
+    fetchWaitingListPatients();
   }, [currentUser]);
-
-  const getStatusBadgeVariant = (status: string) => {
-    if (status === 'Pending Doctor Review') return 'destructive';
-    if (status === 'Reviewed by Doctor') return 'secondary'; // Or some other variant like 'warning'
-    if (status === 'Specialist Feedback Provided') return 'default'; // Green
-    return 'outline';
-  };
-
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -83,14 +78,14 @@ export default function ViewPatientsPage() {
         </Link>
       </Button>
       <div className="flex items-center gap-3 mb-6">
-        <Users className="h-8 w-8 text-primary" />
-        <h1 className="text-3xl font-headline">View All Patients</h1>
+        <ClockHistory className="h-8 w-8 text-primary" />
+        <h1 className="text-3xl font-headline">Patient Waiting List</h1>
       </div>
       <Card className="shadow-xl">
         <CardHeader>
-          <CardTitle className="text-2xl font-headline">Your Registered Patients</CardTitle>
+          <CardTitle className="text-2xl font-headline">Patients Pending Doctor Review</CardTitle>
           <CardDescription>
-            A list of all patients you have registered.
+            These patients are awaiting initial review or feedback from a medical doctor.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -102,7 +97,7 @@ export default function ViewPatientsPage() {
           {!loading && error && (
             <Card className="border-destructive bg-destructive/10 p-4">
               <CardTitle className="text-destructive flex items-center gap-2 text-lg">
-                <AlertTriangle /> Error Loading Patients
+                <AlertTriangle /> Error Loading Waiting List
               </CardTitle>
               <CardDescription className="text-destructive">
                 {error}
@@ -110,7 +105,7 @@ export default function ViewPatientsPage() {
             </Card>
           )}
           {!loading && !error && patients.length === 0 && (
-            <p className="text-muted-foreground text-center py-4">No patients registered yet.</p>
+            <p className="text-muted-foreground text-center py-4">No patients currently on the waiting list.</p>
           )}
           {!loading && !error && patients.length > 0 && (
             <Table>
@@ -120,7 +115,7 @@ export default function ViewPatientsPage() {
                   <TableHead>Patient ID</TableHead>
                   <TableHead>Age</TableHead>
                   <TableHead>Registered On</TableHead>
-                  <TableHead>Feedback Status</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -134,13 +129,11 @@ export default function ViewPatientsPage() {
                       {patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleDateString() : 'N/A'}
                     </TableCell>
                     <TableCell>
-                       <Badge variant={getStatusBadgeVariant(patient.feedbackStatus)}>
-                        {patient.feedbackStatus}
-                      </Badge>
+                      <Badge variant="destructive">Pending Doctor Review</Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      {/* Placeholder for view details link. In a real app, this would link to a patient detail page. */}
-                      <Button variant="outline" size="sm" asChild disabled> 
+                      {/* Placeholder for view details. Actual link would go to a patient detail page */}
+                      <Button variant="outline" size="sm" asChild disabled>
                         {/* <Link href={`/dashboard/caregiver/patient/${patient.patientId}`}> */}
                           <Eye className="mr-1 h-4 w-4" /> View Details
                         {/* </Link> */}
@@ -156,5 +149,6 @@ export default function ViewPatientsPage() {
     </div>
   );
 }
+
 
     
