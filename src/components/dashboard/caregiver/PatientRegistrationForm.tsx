@@ -24,28 +24,53 @@ import {
 } from "@/components/ui/select";
 import { MedicalTermInput } from "@/components/shared/MedicalTermInput";
 import { useToast } from "@/hooks/use-toast";
-import { Save } from "lucide-react";
-import { db } from "@/lib/firebase"; // auth removed as currentUser comes from useAuth
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { Save, FileText } from "lucide-react";
+import { db } from "@/lib/firebase";
+import { collection, addDoc, updateDoc, doc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext"; 
 import { v4 as uuidv4 } from 'uuid';
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
+// Schema for form validation (values directly edited by user)
 const patientRegistrationSchema = z.object({
   hospitalName: z.string().min(2, "Hospital name is required."),
-  hospitalId: z.string().min(1, "Hospital ID is required."),
+  hospitalId: z.string().min(1, "Hospital ID (caregiver input) is required."), // Caregiver's input ID
   patientName: z.string().min(2, "Patient name is required."),
   patientAge: z.string().min(1, "Patient age is required (e.g., 3 months, 1 year)."),
   patientGender: z.enum(["Male", "Female", "Other"], { required_error: "Gender is required." }),
   patientAddress: z.string().min(5, "Address is required."),
   patientPhoneNumber: z.string().min(7, "Valid phone number is required."),
-  patientReligion: z.string().optional(),
-  previousDiseases: z.string().optional(),
-  currentMedications: z.string().optional(),
-  insuranceDetails: z.string().optional(),
-  patientFiles: z.custom<FileList>().optional(),
+  patientReligion: z.string().optional().default(""),
+  previousDiseases: z.string().optional().default(""),
+  currentMedications: z.string().optional().default(""),
+  insuranceDetails: z.string().optional().default(""),
+  patientFiles: z.custom<FileList>().optional(), // For new file uploads
 });
 
 type PatientRegistrationFormValues = z.infer<typeof patientRegistrationSchema>;
+
+// Type for the data passed to the form when in edit mode
+// This should align with PatientRegistrationFormValues but also include id and existing files.
+export interface PatientDataForForm {
+  id: string; // Firestore document ID
+  hospitalName: string;
+  hospitalId: string;
+  patientName: string;
+  patientAge: string;
+  patientGender: "Male" | "Female" | "Other";
+  patientAddress: string;
+  patientPhoneNumber: string;
+  patientReligion?: string;
+  previousDiseases?: string;
+  currentMedications?: string;
+  insuranceDetails?: string;
+  uploadedFileNames?: string[]; // Existing files
+}
+
+interface PatientRegistrationFormProps {
+  patientToEdit?: PatientDataForForm;
+}
 
 const defaultValues: Partial<PatientRegistrationFormValues> = {
   hospitalName: "",
@@ -60,71 +85,122 @@ const defaultValues: Partial<PatientRegistrationFormValues> = {
   insuranceDetails: "",
 };
 
-export function PatientRegistrationForm() {
+export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFormProps) {
   const { toast } = useToast();
   const { currentUser } = useAuth(); 
+  const router = useRouter();
+  const isEditMode = !!patientToEdit;
 
   const form = useForm<PatientRegistrationFormValues>({
     resolver: zodResolver(patientRegistrationSchema),
     defaultValues,
   });
 
+  useEffect(() => {
+    if (isEditMode && patientToEdit) {
+      // Pre-fill form with data for editing
+      // Ensure only fields present in PatientRegistrationFormValues are reset
+      const formData: Partial<PatientRegistrationFormValues> = {
+        hospitalName: patientToEdit.hospitalName,
+        hospitalId: patientToEdit.hospitalId,
+        patientName: patientToEdit.patientName,
+        patientAge: patientToEdit.patientAge,
+        patientGender: patientToEdit.patientGender,
+        patientAddress: patientToEdit.patientAddress,
+        patientPhoneNumber: patientToEdit.patientPhoneNumber,
+        patientReligion: patientToEdit.patientReligion || "",
+        previousDiseases: patientToEdit.previousDiseases || "",
+        currentMedications: patientToEdit.currentMedications || "",
+        insuranceDetails: patientToEdit.insuranceDetails || "",
+        // patientFiles is for new uploads, not pre-filled from uploadedFileNames
+      };
+      form.reset(formData);
+    }
+  }, [isEditMode, patientToEdit, form]);
+
   async function onSubmit(data: PatientRegistrationFormValues) {
     if (!currentUser) {
       toast({
         title: "Authentication Error",
-        description: "You must be logged in to register a patient.",
+        description: "You must be logged in.",
         variant: "destructive",
       });
       return;
     }
 
-    const fileNames: string[] = [];
+    const newFileNames: string[] = [];
     if (data.patientFiles && data.patientFiles.length > 0) {
       for (let i = 0; i < data.patientFiles.length; i++) {
-        fileNames.push(data.patientFiles[i].name);
+        newFileNames.push(data.patientFiles[i].name);
       }
     }
 
-    const generatedPatientId = `PAT-${uuidv4().substring(0, 8).toUpperCase()}`;
-    const registrationDateTime = serverTimestamp();
+    if (isEditMode && patientToEdit) {
+      // Update existing patient
+      const updatedPatientData: Partial<PatientDataForForm> & { updatedAt: Timestamp } = {
+        ...data, // Contains all form fields
+        uploadedFileNames: [...(patientToEdit.uploadedFileNames || []), ...newFileNames],
+        updatedAt: serverTimestamp() as Timestamp,
+      };
+      // We don't want to update patientFiles (FileList) itself to Firestore
+      delete (updatedPatientData as any).patientFiles;
 
-    const patientData: any = {
-      ...data,
-      patientId: generatedPatientId,
-      caregiverUid: currentUser.uid, 
-      registrationDateTime: registrationDateTime,
-      feedbackStatus: 'Pending Doctor Review', // Initial feedback status
-      createdAt: serverTimestamp(),
-      uploadedFileNames: fileNames, 
-    };
-    
-    delete patientData.patientFiles; 
 
-    try {
-      const docRef = await addDoc(collection(db, "patients"), patientData);
-      console.log("Patient registered with Firestore ID: ", docRef.id, "and Patient ID:", generatedPatientId);
-      toast({
-        title: "Patient Registration Successful",
-        description: `${data.patientName} (ID: ${generatedPatientId}) has been registered.`,
-      });
-      form.reset(); 
-    } catch (error: any) {
-      console.error("Error registering patient:", error);
-      let errorMessage = "Failed to register patient. Please try again.";
-       if (error.code === "firestore/permission-denied") {
-        errorMessage = "Permission denied. Please check Firestore rules.";
-      } else if (error.message && error.message.includes("Unsupported field value")) {
-         errorMessage = "Failed to register patient due to an invalid data field. Please check your inputs.";
-         console.error("Offending data for Firestore:", patientData);
-      } else if (error.code === "unavailable" || error.message?.includes("client is offline")) {
-        errorMessage = "Failed to register patient: Could not connect to the database. Please check your internet connection.";
+      try {
+        const patientDocRef = doc(db, "patients", patientToEdit.id);
+        await updateDoc(patientDocRef, updatedPatientData);
+        toast({
+          title: "Patient Updated Successfully",
+          description: `${data.patientName}'s information has been updated.`,
+        });
+        router.push(`/dashboard/caregiver/patient/${patientToEdit.id}`); // Navigate back to detail page
+      } catch (error: any) {
+        console.error("Error updating patient:", error);
+        toast({
+          title: "Update Failed",
+          description: "Failed to update patient information. Please try again.",
+          variant: "destructive",
+        });
       }
-      toast({
-        title: "Registration Failed",
-        description: errorMessage,
-        variant: "destructive",
-      });
+    } else {
+      // Create new patient
+      const generatedPatientId = `PAT-${uuidv4().substring(0, 8).toUpperCase()}`;
+      
+      const patientDataForCreate = {
+        ...data,
+        patientId: generatedPatientId, // System-generated patient ID
+        caregiverUid: currentUser.uid, 
+        registrationDateTime: serverTimestamp(),
+        feedbackStatus: 'Pending Doctor Review',
+        createdAt: serverTimestamp(),
+        uploadedFileNames: newFileNames,
+      };
+      delete (patientDataForCreate as any).patientFiles;
+
+      try {
+        await addDoc(collection(db, "patients"), patientDataForCreate);
+        toast({
+          title: "Patient Registration Successful",
+          description: `${data.patientName} (ID: ${generatedPatientId}) has been registered.`,
+        });
+        form.reset(defaultValues); 
+        // Optionally navigate or clear form further
+      } catch (error: any) {
+        console.error("Error registering patient:", error);
+        let errorMessage = "Failed to register patient. Please try again.";
+        if (error.code === "firestore/permission-denied") {
+          errorMessage = "Permission denied. Please check Firestore rules.";
+        } else if (error.message?.includes("Unsupported field value")) {
+           errorMessage = "Failed to register patient due to an invalid data field.";
+        } else if (error.code === "unavailable" || error.message?.includes("client is offline")) {
+          errorMessage = "Failed to register patient: Database offline. Check connection.";
+        }
+        toast({
+          title: "Registration Failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
     }
   }
 
@@ -132,6 +208,7 @@ export function PatientRegistrationForm() {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Fields as before */}
           <FormField
             control={form.control}
             name="hospitalName"
@@ -190,7 +267,7 @@ export function PatientRegistrationForm() {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Gender</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select gender" />
@@ -290,12 +367,28 @@ export function PatientRegistrationForm() {
               </FormItem>
             )}
           />
+
+          {isEditMode && patientToEdit && patientToEdit.uploadedFileNames && patientToEdit.uploadedFileNames.length > 0 && (
+            <div className="md:col-span-2 space-y-2">
+              <FormLabel>Currently Uploaded Files</FormLabel>
+              <ul className="list-disc list-inside text-sm text-muted-foreground p-2 border rounded-md bg-secondary/30">
+                {patientToEdit.uploadedFileNames.map((fileName, index) => (
+                  <li key={index} className="flex items-center">
+                    <FileText className="h-4 w-4 mr-2 shrink-0" /> 
+                    {fileName}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-muted-foreground">Upload new files below to add them to the existing list. Deleting files is not supported in this form.</p>
+            </div>
+          )}
+
           <FormField
             control={form.control}
             name="patientFiles"
             render={({ field: { onChange, value, ...rest } }) => ( 
               <FormItem className="md:col-span-2">
-                <FormLabel>Patient Files (Optional, e.g., birth certificate, previous records)</FormLabel>
+                <FormLabel>{isEditMode ? "Add More Files (Optional)" : "Patient Files (Optional)"}</FormLabel>
                 <FormControl>
                   <Input type="file" {...rest} onChange={(e) => onChange(e.target.files)} multiple />
                 </FormControl>
@@ -305,11 +398,9 @@ export function PatientRegistrationForm() {
           />
         </div>
         <Button type="submit" className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground" disabled={form.formState.isSubmitting || !currentUser}>
-          <Save className="mr-2 h-5 w-5" /> {form.formState.isSubmitting ? "Registering..." : "Register Patient"}
+          <Save className="mr-2 h-5 w-5" /> {form.formState.isSubmitting ? (isEditMode ? "Saving Changes..." : "Registering...") : (isEditMode ? "Save Changes" : "Register Patient")}
         </Button>
       </form>
     </Form>
   );
 }
-
-    

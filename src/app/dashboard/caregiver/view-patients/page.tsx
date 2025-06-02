@@ -4,7 +4,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowLeft, Users, AlertTriangle, Eye } from 'lucide-react';
+import { ArrowLeft, Users, AlertTriangle, Eye, Edit } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
@@ -138,10 +138,15 @@ export default function ViewPatientsPage() {
                         {patient.feedbackStatus}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right space-x-2">
                       <Button variant="outline" size="sm" asChild>
                         <Link href={`/dashboard/caregiver/patient/${patient.id}`}>
                           <Eye className="mr-1 h-4 w-4" /> View Details
+                        </Link>
+                      </Button>
+                      <Button variant="secondary" size="sm" asChild>
+                        <Link href={`/dashboard/caregiver/patient/${patient.id}/edit`}>
+                          <Edit className="mr-1 h-4 w-4" /> Modify
                         </Link>
                       </Button>
                     </TableCell>

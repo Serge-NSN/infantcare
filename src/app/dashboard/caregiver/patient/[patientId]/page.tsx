@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -18,14 +19,14 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 interface PatientData {
   id: string;
   patientName: string;
-  patientId: string;
+  patientId: string; // System-generated ID
   patientAge: string;
   patientGender: string;
   patientAddress: string;
   patientPhoneNumber: string;
   patientReligion?: string;
   hospitalName: string;
-  hospitalId: string;
+  hospitalId: string; // Caregiver-input hospital ID
   previousDiseases?: string;
   currentMedications?: string;
   insuranceDetails?: string;
@@ -33,6 +34,7 @@ interface PatientData {
   registrationDateTime: Timestamp;
   feedbackStatus: string;
   caregiverUid: string;
+  // Add other fields as necessary, e.g., doctorFeedback, testResults
 }
 
 export default function CaregiverPatientDetailPage() {
@@ -180,8 +182,10 @@ export default function CaregiverPatientDetailPage() {
               Patient ID: {patient.patientId} &bull; Age: {patient.patientAge} &bull; Gender: {patient.patientGender}
             </CardDescription>
           </div>
-           <Button variant="outline" size="sm" disabled> 
-              <Edit className="mr-2 h-4 w-4" /> Edit Information
+           <Button variant="outline" size="sm" asChild> 
+              <Link href={`/dashboard/caregiver/patient/${patient.id}/edit`}>
+                <Edit className="mr-2 h-4 w-4" /> Edit Information
+              </Link>
             </Button>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -229,31 +233,29 @@ export default function CaregiverPatientDetailPage() {
               {patient.uploadedFileNames && patient.uploadedFileNames.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                   {patient.uploadedFileNames.map((fileName, index) => {
-                    // DEBUGGING: Check the filename and result of isImageFile
-                    // console.log(`DEBUG: Checking file: '${fileName}', type: ${typeof fileName}`);
                     const isImageFile = typeof fileName === 'string' && /\.(jpe?g|png|gif|webp)$/i.test(fileName);
-                    // console.log(`DEBUG: Is '${fileName}' an image? ${isImageFile}`);
+                    // console.log(`DEBUG: Checking file: '${fileName}', type: ${typeof fileName}, isImage: ${isImageFile}`);
                     
                     return (
                       <div key={index} className="flex flex-col items-center text-center p-2 border rounded-md bg-background shadow-sm">
                         {isImageFile ? (
                           <Image
-                            src={`https://placehold.co/100x100.png`} 
+                            src={`https://placehold.co/150x150.png`} 
                             alt={fileName || 'Uploaded image'}
-                            width={100}
-                            height={100}
+                            width={150}
+                            height={150}
                             className="rounded-md object-cover mb-1"
                             data-ai-hint="medical scan" 
                           />
                         ) : (
-                          <div className="w-24 h-24 bg-muted rounded-md flex items-center justify-center mb-1">
-                            <FileIcon className="h-10 w-10 text-muted-foreground" />
+                          <div className="w-[150px] h-[150px] bg-muted rounded-md flex items-center justify-center mb-1">
+                            <FileIcon className="h-16 w-16 text-muted-foreground" />
                           </div>
                         )}
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <p className="text-xs text-foreground truncate w-full max-w-[100px]">{fileName || 'Unnamed file'}</p>
+                              <p className="text-xs text-foreground truncate w-full max-w-[140px]">{fileName || 'Unnamed file'}</p>
                             </TooltipTrigger>
                             <TooltipContent>
                               <p>{fileName || 'Unnamed file'}</p>
