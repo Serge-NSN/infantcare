@@ -140,7 +140,7 @@ export default function ViewPatientsPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       {/* Placeholder for view details link. In a real app, this would link to a patient detail page. */}
-                      <Button variant="outline" size="sm" asChild disabled> 
+                      <Button variant="outline" size="sm" disabled> 
                         {/* <Link href={`/dashboard/caregiver/patient/${patient.patientId}`}> */}
                           <Eye className="mr-1 h-4 w-4" /> View Details
                         {/* </Link> */}

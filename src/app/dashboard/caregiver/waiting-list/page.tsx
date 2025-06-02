@@ -133,7 +133,7 @@ export default function WaitingListPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       {/* Placeholder for view details. Actual link would go to a patient detail page */}
-                      <Button variant="outline" size="sm" asChild disabled>
+                      <Button variant="outline" size="sm" disabled>
                         {/* <Link href={`/dashboard/caregiver/patient/${patient.patientId}`}> */}
                           <Eye className="mr-1 h-4 w-4" /> View Details
                         {/* </Link> */}
@@ -149,3 +149,4 @@ export default function WaitingListPage() {
     </div>
   );
 }
+
