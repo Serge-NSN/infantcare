@@ -5,26 +5,28 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image'; // Ensure Next Image is imported
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, Timestamp } from 'firebase/firestore';
-import { ArrowLeft, UserCircle, Hospital, CalendarDays, Stethoscope, Microscope, FileText, Edit, AlertTriangle, Info } from 'lucide-react';
+import { ArrowLeft, UserCircle, Hospital, CalendarDays, Stethoscope, Microscope, FileText as FileIcon, Edit, AlertTriangle, Info } from 'lucide-react'; // Renamed FileText to FileIcon for clarity
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'; // Ensure Tooltip components are imported
 
 interface PatientData {
   id: string;
   patientName: string;
-  patientId: string; // The custom generated ID
+  patientId: string; 
   patientAge: string;
   patientGender: string;
   patientAddress: string;
   patientPhoneNumber: string;
   patientReligion?: string;
   hospitalName: string;
-  hospitalId: string; // Caregiver input hospital ID
+  hospitalId: string; 
   previousDiseases?: string;
   currentMedications?: string;
   insuranceDetails?: string;
@@ -32,7 +34,6 @@ interface PatientData {
   registrationDateTime: Timestamp;
   feedbackStatus: string;
   caregiverUid: string;
-  // doctorFeedback will be added later
 }
 
 export default function CaregiverPatientDetailPage() {
@@ -61,7 +62,6 @@ export default function CaregiverPatientDetailPage() {
 
         if (patientDocSnap.exists()) {
           const data = patientDocSnap.data() as Omit<PatientData, 'id'>;
-          // Ensure the caregiver viewing this patient is the one who registered them
           if (data.caregiverUid !== currentUser.uid) {
             setError("You do not have permission to view this patient's details.");
             setPatient(null);
@@ -100,7 +100,7 @@ export default function CaregiverPatientDetailPage() {
             <Skeleton className="h-6 w-1/2" />
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[...Array(6)].map((_, i) => (
+            {[...Array(8)].map((_, i) => ( // Increased skeleton items
               <div key={i} className="space-y-2">
                 <Skeleton className="h-5 w-1/3" />
                 <Skeleton className="h-5 w-2/3" />
@@ -146,16 +146,16 @@ export default function CaregiverPatientDetailPage() {
     );
   }
   
-  const DetailItem = ({ label, value, icon: Icon }: { label: string; value?: string | string[] | null; icon?: React.ElementType }) => (
+  const DetailItem = ({ label, value, icon: IconComponent }: { label: string; value?: string | string[] | null; icon?: React.ElementType }) => (
     <div className="mb-3">
       <h4 className="text-sm font-semibold text-muted-foreground flex items-center">
-        {Icon && <Icon className="mr-2 h-4 w-4 text-primary" />}
+        {IconComponent && <IconComponent className="mr-2 h-4 w-4 text-primary" />}
         {label}
       </h4>
       {Array.isArray(value) ? (
         value.length > 0 ? (
           <ul className="list-disc list-inside ml-4 text-sm">
-            {value.map((item, index) => <li key={index}>{item}</li>)}
+            {value.map((item, index) => <li key={index}>{item || 'N/A'}</li>)}
           </ul>
         ) : <p className="text-sm text-foreground">N/A</p>
       ) : (
@@ -163,7 +163,6 @@ export default function CaregiverPatientDetailPage() {
       )}
     </div>
   );
-
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -182,7 +181,7 @@ export default function CaregiverPatientDetailPage() {
               Patient ID: {patient.patientId} &bull; Age: {patient.patientAge} &bull; Gender: {patient.patientGender}
             </CardDescription>
           </div>
-           <Button variant="outline" size="sm" disabled> {/* Placeholder for Edit */}
+           <Button variant="outline" size="sm" disabled> 
               <Edit className="mr-2 h-4 w-4" /> Edit Information
             </Button>
         </CardHeader>
@@ -220,25 +219,60 @@ export default function CaregiverPatientDetailPage() {
                 <Badge variant={getStatusBadgeVariant(patient.feedbackStatus)} className="text-sm px-3 py-1">
                   {patient.feedbackStatus}
                 </Badge>
-                 {/* Placeholder for Doctor Feedback */}
                 <div className="mt-4 p-3 border rounded-md bg-background">
                     <h4 className="font-semibold text-muted-foreground">Doctor's Feedback:</h4>
                     <p className="text-sm text-muted-foreground italic">No feedback provided yet.</p>
-                    {/* <p className="text-sm"><strong>Dr. Sample:</strong> Patient seems stable, monitor growth.</p> */}
                 </div>
             </Card>
             
             <Card className="p-4 bg-secondary/30">
-              <CardTitle className="text-xl font-headline mb-3 flex items-center"><FileText className="mr-2 h-5 w-5 text-primary" />Uploaded Files</CardTitle>
-              <DetailItem label="File Names" value={patient.uploadedFileNames && patient.uploadedFileNames.length > 0 ? patient.uploadedFileNames : ["No files uploaded."]} />
-              {/* Actual file links/previews would go here in a full app */}
+              <CardTitle className="text-xl font-headline mb-3 flex items-center"><FileIcon className="mr-2 h-5 w-5 text-primary" />Uploaded Files</CardTitle>
+              {patient.uploadedFileNames && patient.uploadedFileNames.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {patient.uploadedFileNames.map((fileName, index) => {
+                    const isImageFile = /\.(jpe?g|png|gif|webp)$/i.test(fileName);
+                    return (
+                      <div key={index} className="flex flex-col items-center text-center p-2 border rounded-md bg-background shadow-sm">
+                        {isImageFile ? (
+                          <Image
+                            src={`https://placehold.co/150x150.png`} 
+                            alt={fileName || 'Uploaded image'}
+                            width={100}
+                            height={100}
+                            className="rounded-md object-cover mb-1"
+                            data-ai-hint="medical scan" 
+                          />
+                        ) : (
+                          <div className="w-24 h-24 bg-muted rounded-md flex items-center justify-center mb-1">
+                            <FileIcon className="h-10 w-10 text-muted-foreground" />
+                          </div>
+                        )}
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <p className="text-xs text-foreground truncate w-full max-w-[100px]">{fileName || 'Unnamed file'}</p>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{fileName || 'Unnamed file'}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-foreground">No files uploaded.</p>
+              )}
             </Card>
           </div>
         </CardContent>
         <CardFooter className="text-xs text-muted-foreground">
-          Last updated: {patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleDateString() : 'N/A'} (This would be an 'updatedAt' field ideally)
+          Last updated: {patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleDateString() : 'N/A'}
         </CardFooter>
       </Card>
     </div>
   );
 }
+
+    
