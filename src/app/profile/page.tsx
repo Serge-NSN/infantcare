@@ -1,7 +1,7 @@
 // src/app/profile/page.tsx
 "use client";
 
-import * as React from 'react'; // Added import for React
+import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { updateProfile, updateEmail, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link'; // Added Link import
 import { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -19,7 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, UserCog, Save } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getDashboardLink } from '@/lib/utils/getDashboardLink';
-import { cn } from "@/lib/utils"; // Added import for cn
+import { cn } from "@/lib/utils";
 
 const profileSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters."),
@@ -28,7 +29,7 @@ const profileSchema = z.object({
   address: z.string().min(5, "Address must be at least 5 characters."),
   hospital: z.string().min(2, "Hospital name must be at least 2 characters."),
   currentPassword: z.string().optional(), // For email change re-authentication
-  role: z.string().optional(), // Added role to schema to pass to getDashboardLink
+  role: z.string().optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
