@@ -130,26 +130,38 @@ export default function DoctorPatientDetailPage() {
     setIsSubmittingFeedback(true);
     try {
       const patientDocRef = doc(db, "patients", patient.id);
-      await updateDoc(patientDocRef, {
+      const feedbackData: any = { // Using 'any' temporarily for flexibility, can be typed better
         doctorFeedbackNotes: feedbackText.trim(),
         feedbackStatus: 'Reviewed by Doctor',
         doctorId: currentUser.uid,
-        doctorName: currentUser.displayName || currentUser.email, // Use displayName or fallback to email
+        doctorName: currentUser.displayName || currentUser.email?.split('@')[0] || 'N/A',
         feedbackDateTime: serverTimestamp()
-      });
+      };
+
+      await updateDoc(patientDocRef, feedbackData);
+
       toast({ title: "Feedback Submitted", description: "Patient record updated successfully." });
       setPatient(prev => prev ? {
          ...prev, 
-         doctorFeedbackNotes: feedbackText.trim(),
-         feedbackStatus: 'Reviewed by Doctor',
-         doctorId: currentUser.uid,
-         doctorName: currentUser.displayName || currentUser.email,
-         feedbackDateTime: Timestamp.now() // Approximate client-side, Firestore will use server time
+         ...feedbackData, // Spread the submitted data
+         feedbackDateTime: Timestamp.now() // Client-side approximation
         } : null);
       // Optionally, disable form or redirect
     } catch (err: any) {
-      console.error("Error submitting feedback:", err);
-      toast({ title: "Submission Failed", description: "Could not submit feedback. Please try again.", variant: "destructive" });
+      console.error("Error submitting feedback (raw):", err);
+      console.error("Error code:", err.code);
+      console.error("Error message:", err.message);
+
+      let description = "Could not submit feedback. Please try again.";
+      if (err.code === 'permission-denied') {
+        description = "Permission denied. Please check Firestore security rules for updating patient records.";
+      } else if (err.code === 'unavailable') {
+        description = "Could not connect to the database. Please check your internet connection.";
+      } else if (err.code) { // If there's a specific code, mention it
+        description = `Could not submit feedback (Error: ${err.code}). Please try again.`;
+      }
+      
+      toast({ title: "Submission Failed", description: description, variant: "destructive" });
     } finally {
       setIsSubmittingFeedback(false);
     }
