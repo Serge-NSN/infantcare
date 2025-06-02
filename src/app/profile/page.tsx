@@ -1,6 +1,7 @@
 // src/app/profile/page.tsx
 "use client";
 
+import * as React from 'react'; // Added import for React
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -17,6 +18,8 @@ import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, UserCog, Save } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getDashboardLink } from '@/lib/utils/getDashboardLink';
+import { cn } from "@/lib/utils"; // Added import for cn
 
 const profileSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters."),
@@ -25,6 +28,7 @@ const profileSchema = z.object({
   address: z.string().min(5, "Address must be at least 5 characters."),
   hospital: z.string().min(2, "Hospital name must be at least 2 characters."),
   currentPassword: z.string().optional(), // For email change re-authentication
+  role: z.string().optional(), // Added role to schema to pass to getDashboardLink
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -46,6 +50,7 @@ export default function ProfilePage() {
       address: '',
       hospital: '',
       currentPassword: '',
+      role: '',
     }
   });
 
@@ -66,13 +71,14 @@ export default function ProfilePage() {
           const userDocSnap = await getDoc(userDocRef);
           if (userDocSnap.exists()) {
             const dbData = userDocSnap.data();
-            const initialValues = {
+            const initialValues: ProfileFormValues = {
               fullName: dbData.fullName || '',
               email: currentUser.email || '', // Firebase Auth email is source of truth initially
               career: dbData.career || '',
               address: dbData.address || '',
               hospital: dbData.hospital || '',
               currentPassword: '',
+              role: dbData.role || '',
             };
             setUserData(initialValues);
             reset(initialValues); // Set form default values
@@ -140,7 +146,11 @@ export default function ProfilePage() {
       }
 
       toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
-      reset(data); // Reset form with new default values
+      // Update form values, ensuring 'role' is preserved if it was part of the initial load
+      const updatedFormValues = { ...data, role: userData?.role || data.role };
+      reset(updatedFormValues); 
+      setUserData(prev => ({ ...prev, ...updatedFormValues })); // Update local state as well
+
     } catch (error: any) {
       console.error("Error updating profile:", error);
       let desc = "Failed to update profile. Please try again.";
