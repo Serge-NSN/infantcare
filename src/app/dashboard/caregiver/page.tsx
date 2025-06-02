@@ -57,6 +57,8 @@ export default function CaregiverDashboardPage() {
         let specificError = "Could not load patient statistics. Please try again later.";
         if (err.code === "unavailable" || err.message?.includes("client is offline")) {
           specificError = "Could not load statistics: Database is offline. Please check your internet connection.";
+        } else if (err.code === "failed-precondition") {
+          specificError = "Could not load statistics: This often indicates a missing database index. Please check your browser's developer console for a link to create the necessary index in your Firebase project, or create it manually in the Firestore 'Indexes' tab for the 'patients' collection (fields: caregiverUid ASC, feedbackStatus ASC).";
         }
         setError(specificError);
       } finally {
