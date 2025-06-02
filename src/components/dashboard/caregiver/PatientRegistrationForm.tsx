@@ -24,18 +24,17 @@ import {
 } from "@/components/ui/select";
 import { MedicalTermInput } from "@/components/shared/MedicalTermInput";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarIcon, ClockIcon, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
-import { collection, addDoc, Timestamp } from "firebase/firestore";
-import { useAuth } from "@/contexts/AuthContext"; // Import useAuth
+import { collection, addDoc, Timestamp, serverTimestamp } from "firebase/firestore";
+import { useAuth } from "@/contexts/AuthContext"; 
+import { v4 as uuidv4 } from 'uuid'; // For generating unique patient IDs
 
+// Schema updated: removed registrationDate, registrationTime, patientId
 const patientRegistrationSchema = z.object({
-  registrationDate: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date" }),
-  registrationTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:MM)"),
   hospitalName: z.string().min(2, "Hospital name is required."),
-  hospitalId: z.string().min(1, "Hospital ID is required."),
+  hospitalId: z.string().min(1, "Hospital ID is required."), // Caregiver inputs this specific ID from the hospital
   patientName: z.string().min(2, "Patient name is required."),
-  patientId: z.string().min(1, "Patient ID is required."), // User-provided patient ID
   patientAge: z.string().min(1, "Patient age is required (e.g., 3 months, 1 year)."),
   patientGender: z.enum(["Male", "Female", "Other"], { required_error: "Gender is required." }),
   patientAddress: z.string().min(5, "Address is required."),
@@ -50,13 +49,11 @@ const patientRegistrationSchema = z.object({
 type PatientRegistrationFormValues = z.infer<typeof patientRegistrationSchema>;
 
 const defaultValues: Partial<PatientRegistrationFormValues> = {
-  registrationDate: "",
-  registrationTime: "",
   hospitalName: "",
   hospitalId: "",
   patientName: "",
-  patientId: "",
   patientAge: "",
+  // patientGender: undefined, // Will be selected
   patientAddress: "",
   patientPhoneNumber: "",
   patientReligion: "",
@@ -67,7 +64,7 @@ const defaultValues: Partial<PatientRegistrationFormValues> = {
 
 export function PatientRegistrationForm() {
   const { toast } = useToast();
-  const { currentUser } = useAuth(); // Get current user from AuthContext
+  const { currentUser } = useAuth(); 
 
   const form = useForm<PatientRegistrationFormValues>({
     resolver: zodResolver(patientRegistrationSchema),
@@ -87,40 +84,42 @@ export function PatientRegistrationForm() {
     const fileNames: string[] = [];
     if (data.patientFiles && data.patientFiles.length > 0) {
       for (let i = 0; i < data.patientFiles.length; i++) {
+        // In a real app, you'd upload files to Firebase Storage here and store URLs/references
         fileNames.push(data.patientFiles[i].name);
       }
     }
 
+    // Auto-generate patientId and registrationDateTime
+    const generatedPatientId = `PAT-${uuidv4().substring(0, 8).toUpperCase()}`;
+    const registrationDateTime = serverTimestamp(); // Use server timestamp for consistency
+
     const patientData: any = {
       ...data,
+      patientId: generatedPatientId, // Add auto-generated patientId
       caregiverUid: currentUser.uid, 
-      registrationDateTime: Timestamp.fromDate(new Date(`${data.registrationDate}T${data.registrationTime}`)),
-      createdAt: Timestamp.now(),
+      registrationDateTime: registrationDateTime,
+      createdAt: serverTimestamp(), // For record creation tracking
       uploadedFileNames: fileNames, 
     };
     
-    // Remove original date, time, and FileList fields before saving to Firestore
-    delete patientData.registrationDate;
-    delete patientData.registrationTime;
-    delete patientData.patientFiles;
-
+    delete patientData.patientFiles; // Remove FileList object before saving
 
     try {
       const docRef = await addDoc(collection(db, "patients"), patientData);
-      console.log("Patient registered with ID: ", docRef.id);
+      console.log("Patient registered with Firestore ID: ", docRef.id, "and Patient ID:", generatedPatientId);
       toast({
         title: "Patient Registration Successful",
-        description: `${data.patientName} has been registered. Firestore ID: ${docRef.id}`,
+        description: `${data.patientName} (ID: ${generatedPatientId}) has been registered.`,
       });
-      form.reset();
+      form.reset(); // Reset form to default values
     } catch (error: any) {
       console.error("Error registering patient:", error);
       let errorMessage = "Failed to register patient. Please try again.";
-      if (error.message && error.message.includes("Unsupported field value: undefined")) {
-        errorMessage = "Failed to register patient: encountered an undefined field. Please check form data.";
-        console.error("Offending data being sent to Firestore (check for undefined values):", patientData);
-      } else if (error.code === "firestore/permission-denied") {
+       if (error.code === "firestore/permission-denied") {
         errorMessage = "Permission denied. Please check Firestore rules.";
+      } else if (error.message && error.message.includes("Unsupported field value")) {
+         errorMessage = "Failed to register patient due to an invalid data field. Please check your inputs.";
+         console.error("Offending data for Firestore:", patientData);
       }
       toast({
         title: "Registration Failed",
@@ -134,32 +133,7 @@ export function PatientRegistrationForm() {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormField
-            control={form.control}
-            name="registrationDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center"><CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />Registration Date</FormLabel>
-                <FormControl>
-                  <Input type="date" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="registrationTime"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center"><ClockIcon className="mr-2 h-4 w-4 text-muted-foreground" />Registration Time</FormLabel>
-                <FormControl>
-                  <Input type="time" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {/* Removed registrationDate and registrationTime fields */}
           <FormField
             control={form.control}
             name="hospitalName"
@@ -178,7 +152,7 @@ export function PatientRegistrationForm() {
             name="hospitalId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Hospital ID</FormLabel>
+                <FormLabel>Hospital ID (Caregiver Input)</FormLabel>
                 <FormControl>
                   <Input placeholder="e.g., HOS-123" {...field} />
                 </FormControl>
@@ -199,19 +173,7 @@ export function PatientRegistrationForm() {
               </FormItem>
             )}
           />
-           <FormField
-            control={form.control}
-            name="patientId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Patient ID (Hospital/Clinic ID)</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., PAT-00123" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+           {/* Removed patientId field - will be auto-generated */}
           <FormField
             control={form.control}
             name="patientAge"
@@ -334,7 +296,7 @@ export function PatientRegistrationForm() {
           <FormField
             control={form.control}
             name="patientFiles"
-            render={({ field: { onChange, value, ...rest } }) => (
+            render={({ field: { onChange, value, ...rest } }) => ( // 'value' is part of field, keep it for controlled component if needed, but we mostly care about onChange
               <FormItem className="md:col-span-2">
                 <FormLabel>Patient Files (Optional, e.g., birth certificate, previous records)</FormLabel>
                 <FormControl>

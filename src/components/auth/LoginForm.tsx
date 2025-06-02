@@ -18,10 +18,11 @@ import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { LogIn, Eye, EyeOff } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
-import { signInWithEmailAndPassword, signOut } from "firebase/auth"; // Import signOut
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { getDashboardLink } from "@/lib/utils/getDashboardLink";
 
 
 const loginFormSchema = z.object({
@@ -50,38 +51,31 @@ export function LoginForm() {
     let userJustSignedIn = false;
     try {
       const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
-      userJustSignedIn = true; // Mark that auth step was successful
+      userJustSignedIn = true; 
       const user = userCredential.user;
       console.log("User signed in to Firebase Auth:", user);
 
-      // Fetch user role from Firestore
       const userDocRef = doc(db, "users", user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
       if (userDocSnap.exists()) {
         const userData = userDocSnap.data();
         const role = userData.role;
+
+        // Store role in localStorage for use in other parts of the app (e.g., homepage redirect)
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('userRole', role);
+          localStorage.setItem('userFullName', userData.fullName || user.email || 'User');
+          localStorage.setItem('userEmail', user.email || '');
+        }
         
         toast({
           title: "Login Successful",
-          description: `Welcome back, ${userData.fullName || user.email}!`,
+          description: `Welcome back, ${userData.fullName || user.email}! Redirecting...`,
         });
+        
+        router.push(getDashboardLink(role));
 
-        // Role-based redirection
-        switch (role) {
-          case "Caregiver":
-            router.push("/dashboard/caregiver");
-            break;
-          case "Medical Doctor":
-            router.push("/dashboard/doctor");
-            break;
-          case "Specialist":
-            router.push("/dashboard/specialist");
-            break;
-          default:
-            console.warn("Unknown user role:", role);
-            router.push("/"); // Fallback to homepage
-        }
       } else {
         console.error("User document not found in Firestore for UID:", user.uid);
         toast({
@@ -89,9 +83,13 @@ export function LoginForm() {
           description: "User profile not found. Please contact support.",
           variant: "destructive",
         });
-         // Sign out the user if their Firestore profile is missing after successful auth
-        if (user) { // user should exist here from userCredential
+        if (user) {
           await signOut(auth);
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('userRole');
+            localStorage.removeItem('userFullName');
+            localStorage.removeItem('userEmail');
+          }
           console.log("User signed out due to missing profile document.");
         }
       }
@@ -100,6 +98,8 @@ export function LoginForm() {
       let errorMessage = "Failed to log in. Please check your credentials or profile data.";
       if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
         errorMessage = "Invalid email or password.";
+      } else if (error.code === "unavailable" || error.message?.includes("client is offline")) {
+        errorMessage = "Login Failed: Could not connect to the database. Please check your internet connection or try again later.";
       }
       
       toast({
@@ -108,11 +108,15 @@ export function LoginForm() {
         variant: "destructive",
       });
 
-      // If Firebase auth succeeded but a subsequent step (like Firestore fetch) failed, sign out.
       if (userJustSignedIn && auth.currentUser) {
         try {
           await signOut(auth);
-          console.log("User signed out due to an error after initial Firebase Auth success (e.g., profile fetch failure).");
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('userRole');
+            localStorage.removeItem('userFullName');
+            localStorage.removeItem('userEmail');
+          }
+          console.log("User signed out due to an error after initial Firebase Auth success.");
         } catch (signOutError) {
           console.error("Error attempting to sign out after login failure:", signOutError);
         }
