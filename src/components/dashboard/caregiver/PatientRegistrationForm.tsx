@@ -184,7 +184,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
           description: `${data.patientName} (ID: ${generatedPatientId}) has been registered.`,
         });
         form.reset(defaultValues); 
-        // Optionally navigate or clear form further
+        router.push(`/dashboard/caregiver/add-patient`);
       } catch (error: any) {
         console.error("Error registering patient:", error);
         let errorMessage = "Failed to register patient. Please try again.";
@@ -379,7 +379,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
                   </li>
                 ))}
               </ul>
-              <p className="text-xs text-muted-foreground">Upload new files below to add them to the existing list. Deleting files is not supported in this form.</p>
+              <p className="text-xs text-muted-foreground">Upload new image files below to add them to the existing list. Deleting files is not supported in this form.</p>
             </div>
           )}
 
@@ -388,11 +388,18 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
             name="patientFiles"
             render={({ field: { onChange, value, ...rest } }) => ( 
               <FormItem className="md:col-span-2">
-                <FormLabel>{isEditMode ? "Add More Files (Optional)" : "Patient Files (Optional)"}</FormLabel>
+                <FormLabel>{isEditMode ? "Add More Image Files (Optional)" : "Upload Patient Images (Optional)"}</FormLabel>
                 <FormControl>
-                  <Input type="file" {...rest} onChange={(e) => onChange(e.target.files)} multiple />
+                  <Input 
+                    type="file" 
+                    {...rest} 
+                    onChange={(e) => onChange(e.target.files)} 
+                    multiple 
+                    accept="image/jpeg, image/png, image/gif, image/webp" // Restrict to image types
+                  />
                 </FormControl>
                 <FormMessage />
+                <p className="text-xs text-muted-foreground">Only image files (.jpg, .png, .gif, .webp) are accepted.</p>
               </FormItem>
             )}
           />
