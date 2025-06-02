@@ -27,7 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Save, FileText } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, updateDoc, doc, serverTimestamp, Timestamp } from "firebase/firestore";
-import { useAuth } from "@/contexts/AuthContext"; 
+import { useAuth } from "@/contexts/AuthContext";
 import { v4 as uuidv4 } from 'uuid';
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -86,7 +86,7 @@ const defaultValues: Partial<PatientRegistrationFormValues> = {
 
 export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFormProps) {
   const { toast } = useToast();
-  const { currentUser } = useAuth(); 
+  const { currentUser } = useAuth();
   const router = useRouter();
   const isEditMode = !!patientToEdit;
 
@@ -162,12 +162,12 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
       const hospitalNamePrefix = data.hospitalName.substring(0, 3).toUpperCase();
       const randomDigits = Math.floor(1000 + Math.random() * 9000);
       const generatedHospitalId = `${hospitalNamePrefix}-${randomDigits}`;
-      
+
       const patientDataForCreate = {
         ...data,
-        patientId: generatedPatientId, 
+        patientId: generatedPatientId,
         hospitalId: generatedHospitalId, // Add system-generated hospital ID
-        caregiverUid: currentUser.uid, 
+        caregiverUid: currentUser.uid,
         registrationDateTime: serverTimestamp(),
         feedbackStatus: 'Pending Doctor Review',
         createdAt: serverTimestamp(),
@@ -176,13 +176,14 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
       delete (patientDataForCreate as any).patientFiles;
 
       try {
-        await addDoc(collection(db, "patients"), patientDataForCreate);
+        const newPatientRef = await addDoc(collection(db, "patients"), patientDataForCreate);
         toast({
           title: "Patient Registration Successful",
           description: `${data.patientName} (ID: ${generatedPatientId}) has been registered. Hospital ID: ${generatedHospitalId}`,
         });
-        form.reset(defaultValues); 
-        router.push(`/dashboard/caregiver/add-patient`);
+        form.reset(defaultValues);
+        // Redirect to the detail page of the newly created patient or back to add-patient
+        router.push(`/dashboard/caregiver/patient/${newPatientRef.id}`);
       } catch (error: any) {
         console.error("Error registering patient:", error);
         let errorMessage = "Failed to register patient. Please try again.";
@@ -219,7 +220,6 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
               </FormItem>
             )}
           />
-          {/* Hospital ID field is removed from here */}
           {isEditMode && patientToEdit?.hospitalId && (
              <FormItem>
                 <FormLabel>Hospital ID (System Generated)</FormLabel>
@@ -366,7 +366,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
               <ul className="list-disc list-inside text-sm text-muted-foreground p-2 border rounded-md bg-secondary/30">
                 {patientToEdit.uploadedFileNames.map((fileName, index) => (
                   <li key={index} className="flex items-center">
-                    <FileText className="h-4 w-4 mr-2 shrink-0" /> 
+                    <FileText className="h-4 w-4 mr-2 shrink-0" />
                     {fileName}
                   </li>
                 ))}
@@ -378,20 +378,20 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
           <FormField
             control={form.control}
             name="patientFiles"
-            render={({ field: { onChange, value, ...rest } }) => ( 
+            render={({ field: { onChange, value, ...rest } }) => (
               <FormItem className="md:col-span-2">
                 <FormLabel>{isEditMode ? "Add More Image Files (Optional)" : "Upload Patient Images (Optional)"}</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="file" 
-                    {...rest} 
-                    onChange={(e) => onChange(e.target.files)} 
-                    multiple 
+                  <Input
+                    type="file"
+                    {...rest}
+                    onChange={(e) => onChange(e.target.files)}
+                    multiple
                     accept="image/jpeg, image/png, image/gif, image/webp"
                   />
                 </FormControl>
                 <FormMessage />
-                <p className="text-xs text-muted-foreground">Only image files (.jpg, .png, .gif, .webp) are accepted.</p>
+                <p className="text-xs text-muted-foreground">Only image files (.jpg, .png, .gif, .webp) are accepted. You can select multiple files.</p>
               </FormItem>
             )}
           />
@@ -403,5 +403,3 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
     </Form>
   );
 }
-
-    
