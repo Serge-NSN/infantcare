@@ -12,21 +12,21 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, Timestamp } from 'firebase/firestore';
-import { ArrowLeft, UserCircle, Hospital, CalendarDays, Stethoscope, Microscope, FileText as FileIcon, Edit, AlertTriangle, Info } from 'lucide-react';
+import { ArrowLeft, UserCircle, Hospital, CalendarDays, Stethoscope, Microscope, FileText as FileIcon, Edit, AlertTriangle, Info, Fingerprint } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface PatientData {
   id: string;
   patientName: string;
-  patientId: string; // System-generated ID
+  patientId: string; // System-generated ID for patient record
+  hospitalId: string; // System-generated ID for hospital affiliation
   patientAge: string;
   patientGender: string;
   patientAddress: string;
   patientPhoneNumber: string;
   patientReligion?: string;
   hospitalName: string;
-  hospitalId: string; // Caregiver-input hospital ID
   previousDiseases?: string;
   currentMedications?: string;
   insuranceDetails?: string;
@@ -179,7 +179,7 @@ export default function CaregiverPatientDetailPage() {
               {patient.patientName}
             </CardTitle>
             <CardDescription className="font-body">
-              Patient ID: {patient.patientId} &bull; Age: {patient.patientAge} &bull; Gender: {patient.patientGender}
+              Patient Record ID: {patient.patientId} &bull; Age: {patient.patientAge} &bull; Gender: {patient.patientGender}
             </CardDescription>
           </div>
            <Button variant="outline" size="sm" asChild> 
@@ -193,7 +193,7 @@ export default function CaregiverPatientDetailPage() {
             <Card className="p-4 bg-secondary/30">
               <CardTitle className="text-xl font-headline mb-3 flex items-center"><Hospital className="mr-2 h-5 w-5 text-primary" />Hospital & Registration</CardTitle>
               <DetailItem label="Hospital Name" value={patient.hospitalName} />
-              <DetailItem label="Hospital ID (Caregiver Input)" value={patient.hospitalId} />
+              <DetailItem label="Hospital ID" value={patient.hospitalId} icon={Fingerprint} />
               <DetailItem 
                 label="Registered On" 
                 value={patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleString() : 'N/A'} 
@@ -279,4 +279,6 @@ export default function CaregiverPatientDetailPage() {
     </div>
   );
 }
+    
+
     

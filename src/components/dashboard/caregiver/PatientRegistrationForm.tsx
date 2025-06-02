@@ -35,7 +35,7 @@ import { useRouter } from "next/navigation";
 // Schema for form validation (values directly edited by user)
 const patientRegistrationSchema = z.object({
   hospitalName: z.string().min(2, "Hospital name is required."),
-  hospitalId: z.string().min(1, "Hospital ID (caregiver input) is required."), // Caregiver's input ID
+  // hospitalId is now system-generated
   patientName: z.string().min(2, "Patient name is required."),
   patientAge: z.string().min(1, "Patient age is required (e.g., 3 months, 1 year)."),
   patientGender: z.enum(["Male", "Female", "Other"], { required_error: "Gender is required." }),
@@ -51,11 +51,10 @@ const patientRegistrationSchema = z.object({
 type PatientRegistrationFormValues = z.infer<typeof patientRegistrationSchema>;
 
 // Type for the data passed to the form when in edit mode
-// This should align with PatientRegistrationFormValues but also include id and existing files.
 export interface PatientDataForForm {
   id: string; // Firestore document ID
   hospitalName: string;
-  hospitalId: string;
+  hospitalId: string; // System-generated, displayed but not edited in form
   patientName: string;
   patientAge: string;
   patientGender: "Male" | "Female" | "Other";
@@ -74,7 +73,7 @@ interface PatientRegistrationFormProps {
 
 const defaultValues: Partial<PatientRegistrationFormValues> = {
   hospitalName: "",
-  hospitalId: "",
+  // hospitalId removed
   patientName: "",
   patientAge: "",
   patientAddress: "",
@@ -98,11 +97,9 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
 
   useEffect(() => {
     if (isEditMode && patientToEdit) {
-      // Pre-fill form with data for editing
-      // Ensure only fields present in PatientRegistrationFormValues are reset
       const formData: Partial<PatientRegistrationFormValues> = {
         hospitalName: patientToEdit.hospitalName,
-        hospitalId: patientToEdit.hospitalId,
+        // hospitalId is not part of the form values to be edited
         patientName: patientToEdit.patientName,
         patientAge: patientToEdit.patientAge,
         patientGender: patientToEdit.patientGender,
@@ -112,7 +109,6 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
         previousDiseases: patientToEdit.previousDiseases || "",
         currentMedications: patientToEdit.currentMedications || "",
         insuranceDetails: patientToEdit.insuranceDetails || "",
-        // patientFiles is for new uploads, not pre-filled from uploadedFileNames
       };
       form.reset(formData);
     }
@@ -136,24 +132,22 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
     }
 
     if (isEditMode && patientToEdit) {
-      // Update existing patient
-      const updatedPatientData: Partial<PatientDataForForm> & { updatedAt: Timestamp } = {
-        ...data, // Contains all form fields
+      const updatedPatientData: Omit<Partial<PatientDataForForm>, 'id' | 'hospitalId'> & { updatedAt: Timestamp; uploadedFileNames: string[] } = {
+        ...data,
         uploadedFileNames: [...(patientToEdit.uploadedFileNames || []), ...newFileNames],
         updatedAt: serverTimestamp() as Timestamp,
       };
-      // We don't want to update patientFiles (FileList) itself to Firestore
       delete (updatedPatientData as any).patientFiles;
-
 
       try {
         const patientDocRef = doc(db, "patients", patientToEdit.id);
+        // hospitalId is not updated as it's system-generated and set at creation
         await updateDoc(patientDocRef, updatedPatientData);
         toast({
           title: "Patient Updated Successfully",
           description: `${data.patientName}'s information has been updated.`,
         });
-        router.push(`/dashboard/caregiver/patient/${patientToEdit.id}`); // Navigate back to detail page
+        router.push(`/dashboard/caregiver/patient/${patientToEdit.id}`);
       } catch (error: any) {
         console.error("Error updating patient:", error);
         toast({
@@ -165,10 +159,14 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
     } else {
       // Create new patient
       const generatedPatientId = `PAT-${uuidv4().substring(0, 8).toUpperCase()}`;
+      const hospitalNamePrefix = data.hospitalName.substring(0, 3).toUpperCase();
+      const randomDigits = Math.floor(1000 + Math.random() * 9000);
+      const generatedHospitalId = `${hospitalNamePrefix}-${randomDigits}`;
       
       const patientDataForCreate = {
         ...data,
-        patientId: generatedPatientId, // System-generated patient ID
+        patientId: generatedPatientId, 
+        hospitalId: generatedHospitalId, // Add system-generated hospital ID
         caregiverUid: currentUser.uid, 
         registrationDateTime: serverTimestamp(),
         feedbackStatus: 'Pending Doctor Review',
@@ -181,7 +179,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
         await addDoc(collection(db, "patients"), patientDataForCreate);
         toast({
           title: "Patient Registration Successful",
-          description: `${data.patientName} (ID: ${generatedPatientId}) has been registered.`,
+          description: `${data.patientName} (ID: ${generatedPatientId}) has been registered. Hospital ID: ${generatedHospitalId}`,
         });
         form.reset(defaultValues); 
         router.push(`/dashboard/caregiver/add-patient`);
@@ -208,7 +206,6 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Fields as before */}
           <FormField
             control={form.control}
             name="hospitalName"
@@ -222,19 +219,14 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
               </FormItem>
             )}
           />
-          <FormField
-            control={form.control}
-            name="hospitalId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Hospital ID (Caregiver Input)</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., HOS-123" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {/* Hospital ID field is removed from here */}
+          {isEditMode && patientToEdit?.hospitalId && (
+             <FormItem>
+                <FormLabel>Hospital ID (System Generated)</FormLabel>
+                <Input value={patientToEdit.hospitalId} readOnly disabled className="bg-muted/50" />
+             </FormItem>
+          )}
+
           <FormField
             control={form.control}
             name="patientName"
@@ -395,7 +387,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
                     {...rest} 
                     onChange={(e) => onChange(e.target.files)} 
                     multiple 
-                    accept="image/jpeg, image/png, image/gif, image/webp" // Restrict to image types
+                    accept="image/jpeg, image/png, image/gif, image/webp"
                   />
                 </FormControl>
                 <FormMessage />
@@ -411,3 +403,5 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
     </Form>
   );
 }
+
+    

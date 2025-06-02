@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { PatientRegistrationForm } from '@/components/dashboard/caregiver/PatientRegistrationForm';
-import type { PatientDataForForm } from '@/components/dashboard/caregiver/PatientRegistrationForm'; // Import the type
+import type { PatientDataForForm } from '@/components/dashboard/caregiver/PatientRegistrationForm'; 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -19,14 +19,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 interface PatientFirestoreData {
   id: string;
   patientName: string;
-  patientId: string; // System-generated ID
+  patientId: string; // System-generated patient record ID
+  hospitalId: string; // System-generated hospital ID
   patientAge: string;
   patientGender: "Male" | "Female" | "Other";
   patientAddress: string;
   patientPhoneNumber: string;
   patientReligion?: string;
   hospitalName: string;
-  hospitalId: string; // Caregiver-input hospital ID
   previousDiseases?: string;
   currentMedications?: string;
   insuranceDetails?: string;
@@ -70,9 +70,9 @@ export default function EditPatientPage() {
           } else {
             // Transform Firestore data to the shape expected by PatientRegistrationForm
             const transformedData: PatientDataForForm = {
-              id: patientDocSnap.id, // Firestore document ID
+              id: patientDocSnap.id, 
               hospitalName: data.hospitalName,
-              hospitalId: data.hospitalId,
+              hospitalId: data.hospitalId, // Pass existing hospitalId
               patientName: data.patientName,
               patientAge: data.patientAge,
               patientGender: data.patientGender,
@@ -83,7 +83,6 @@ export default function EditPatientPage() {
               currentMedications: data.currentMedications || "",
               insuranceDetails: data.insuranceDetails || "",
               uploadedFileNames: data.uploadedFileNames || [],
-              // System fields like patientId (system-generated), registrationDateTime, feedbackStatus are not directly edited in this form
             };
             setPatientDataForForm(transformedData);
             setPageTitle(`Edit Information for ${data.patientName}`);
@@ -172,7 +171,7 @@ export default function EditPatientPage() {
         <CardHeader>
           <CardTitle className="text-2xl font-headline flex items-center gap-2"><Edit className="w-6 h-6"/> Patient Details</CardTitle>
           <CardDescription className="font-body">
-            Modify the patient's registration information as needed. System-generated fields like Patient ID and Registration Date are not editable.
+            Modify the patient's registration information as needed. System-generated fields like Patient Record ID and Hospital ID are not editable.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -182,3 +181,5 @@ export default function EditPatientPage() {
     </div>
   );
 }
+
+    
