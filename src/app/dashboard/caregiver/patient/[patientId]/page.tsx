@@ -127,7 +127,7 @@ export default function CaregiverPatientDetailPage() {
           </CardHeader>
           <CardContent>
             <p className="text-destructive">{error}</p>
-            <Button asChild className="mt-4" onClick={() => router.back()}>
+            <Button className="mt-4" onClick={() => router.back()}>
                 <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
             </Button>
           </CardContent>
@@ -140,7 +140,7 @@ export default function CaregiverPatientDetailPage() {
     return (
       <div className="container mx-auto py-8 px-4 text-center">
         <p>Patient data could not be loaded.</p>
-         <Button asChild className="mt-4" onClick={() => router.back()}>
+         <Button className="mt-4" onClick={() => router.back()}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
         </Button>
       </div>
