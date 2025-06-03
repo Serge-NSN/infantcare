@@ -128,23 +128,34 @@ export default function DoctorPatientDetailPage() {
       return;
     }
     setIsSubmittingFeedback(true);
+
+    const feedbackData: any = {
+      doctorFeedbackNotes: feedbackText.trim(),
+      feedbackStatus: 'Reviewed by Doctor',
+      doctorId: currentUser.uid,
+      doctorName: currentUser.displayName || currentUser.email?.split('@')[0] || 'N/A',
+      feedbackDateTime: serverTimestamp()
+    };
+
+    console.log("Current patient data (resource.data):", patient);
+    console.log("Attempting to update patient with feedbackData (request.resource.data):", feedbackData);
+    console.log("Current user (request.auth):", {
+      uid: currentUser.uid,
+      displayName: currentUser.displayName,
+      email: currentUser.email,
+      // Add custom claims here if your rules use them, e.g., token: currentUser.token
+    });
+
+
     try {
       const patientDocRef = doc(db, "patients", patient.id);
-      const feedbackData: any = { // Using 'any' temporarily for flexibility, can be typed better
-        doctorFeedbackNotes: feedbackText.trim(),
-        feedbackStatus: 'Reviewed by Doctor',
-        doctorId: currentUser.uid,
-        doctorName: currentUser.displayName || currentUser.email?.split('@')[0] || 'N/A',
-        feedbackDateTime: serverTimestamp()
-      };
-
       await updateDoc(patientDocRef, feedbackData);
 
       toast({ title: "Feedback Submitted", description: "Patient record updated successfully." });
       setPatient(prev => prev ? {
-         ...prev, 
-         ...feedbackData, // Spread the submitted data
-         feedbackDateTime: Timestamp.now() // Client-side approximation
+         ...prev,
+         ...feedbackData, // Spread the submitted data (note: feedbackDateTime will be a client-side estimate here if not re-fetched)
+         feedbackDateTime: Timestamp.now() // Client-side approximation for immediate UI update
         } : null);
       // Optionally, disable form or redirect
     } catch (err: any) {
@@ -154,11 +165,11 @@ export default function DoctorPatientDetailPage() {
 
       let description = "Could not submit feedback. Please try again.";
       if (err.code === 'permission-denied') {
-        description = "Permission denied. Please check Firestore security rules for updating patient records.";
+        description = "Permission denied. Please check Firestore security rules for updating patient records. See console for data details.";
       } else if (err.code === 'unavailable') {
         description = "Could not connect to the database. Please check your internet connection.";
-      } else if (err.code) { // If there's a specific code, mention it
-        description = `Could not submit feedback (Error: ${err.code}). Please try again.`;
+      } else if (err.code) {
+        description = `Could not submit feedback (Error: ${err.code}). Please try again. See console for data details.`;
       }
       
       toast({ title: "Submission Failed", description: description, variant: "destructive" });
@@ -169,8 +180,8 @@ export default function DoctorPatientDetailPage() {
   
   const getStatusBadgeVariant = (status: string) => {
     if (status === 'Pending Doctor Review') return 'destructive';
-    if (status === 'Reviewed by Doctor') return 'secondary'; // e.g. blue/purple
-    if (status === 'Specialist Feedback Provided') return 'default'; // e.g. green
+    if (status === 'Reviewed by Doctor') return 'secondary';
+    if (status === 'Specialist Feedback Provided') return 'default';
     return 'outline';
   };
 
@@ -440,3 +451,4 @@ export default function DoctorPatientDetailPage() {
   );
 }
 
+    
