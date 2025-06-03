@@ -23,7 +23,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 interface PatientData {
   id: string;
   patientName: string;
-  patientId: string; // System-generated patient record ID
+  patientId: string; 
   hospitalId: string;
   patientAge: string;
   patientGender: string;
@@ -42,7 +42,6 @@ interface PatientData {
   doctorId?: string;
   doctorName?: string;
   feedbackDateTime?: Timestamp;
-  // Potential future fields: specialistId, specialistFeedbackNotes etc.
 }
 
 interface CaregiverProfile {
@@ -84,6 +83,7 @@ export default function DoctorPatientDetailPage() {
       setLoading(true);
       setError(null);
       try {
+        console.log(`Fetching patient data for doc ID: ${patientDocId} as user: ${currentUser.uid}`);
         const patientDocRef = doc(db, "patients", patientDocId);
         const patientDocSnap = await getDoc(patientDocRef);
 
@@ -93,7 +93,6 @@ export default function DoctorPatientDetailPage() {
           setPatient(fetchedPatient);
           setFeedbackText(fetchedPatient.doctorFeedbackNotes || '');
 
-          // Fetch caregiver's email for "Request More Info" button
           if (data.caregiverUid) {
             try {
               const caregiverDocRef = doc(db, "users", data.caregiverUid);
@@ -107,14 +106,21 @@ export default function DoctorPatientDetailPage() {
                console.error("Error fetching caregiver profile:", caregiverError);
             }
           }
-
         } else {
           setError("Patient not found.");
           setPatient(null);
         }
       } catch (err: any) {
-        console.error("Error fetching patient data:", err);
-        setError("Could not load patient details. Please try again.");
+        console.error("Error fetching patient data (raw):", err);
+        console.error("Fetch Patient - Error code:", err.code);
+        console.error("Fetch Patient - Error message:", err.message);
+        let specificError = "Could not load patient details. Please try again.";
+        if (err.code === 'permission-denied') {
+            specificError = `Permission denied when trying to read patient data. Please check Firestore security rules to ensure doctors can read patient records. (Error: ${err.code})`;
+        } else if (err.code === 'unavailable') {
+            specificError = "Could not connect to the database to read patient data. Please check your internet connection.";
+        }
+        setError(specificError);
       } finally {
         setLoading(false);
       }
@@ -143,9 +149,7 @@ export default function DoctorPatientDetailPage() {
       uid: currentUser.uid,
       displayName: currentUser.displayName,
       email: currentUser.email,
-      // Add custom claims here if your rules use them, e.g., token: currentUser.token
     });
-
 
     try {
       const patientDocRef = doc(db, "patients", patient.id);
@@ -154,10 +158,9 @@ export default function DoctorPatientDetailPage() {
       toast({ title: "Feedback Submitted", description: "Patient record updated successfully." });
       setPatient(prev => prev ? {
          ...prev,
-         ...feedbackData, // Spread the submitted data (note: feedbackDateTime will be a client-side estimate here if not re-fetched)
-         feedbackDateTime: Timestamp.now() // Client-side approximation for immediate UI update
+         ...feedbackData, 
+         feedbackDateTime: Timestamp.now() 
         } : null);
-      // Optionally, disable form or redirect
     } catch (err: any) {
       console.error("Error submitting feedback (raw):", err);
       console.error("Error code:", err.code);
@@ -265,7 +268,6 @@ export default function DoctorPatientDetailPage() {
       </Button>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Patient Information Column */}
         <div className="lg:col-span-2 space-y-6">
             <Card className="shadow-xl">
               <CardHeader>
@@ -367,7 +369,6 @@ export default function DoctorPatientDetailPage() {
             </Card>
         </div>
 
-        {/* Actions & Feedback Column */}
         <div className="lg:col-span-1 space-y-6">
             <Card className="shadow-xl">
                 <CardHeader>
@@ -415,7 +416,7 @@ export default function DoctorPatientDetailPage() {
                         title={!caregiverProfile?.email ? "Caregiver email not available" : ""}
                     />
                     <EmailButton 
-                        receiverEmail="specialist-consult@infantcare.example.com" // Placeholder
+                        receiverEmail="specialist-consult@infantcare.example.com" 
                         subject={`Specialist Consultation Request for Patient: ${patient.patientName} (ID: ${patient.patientId})`}
                         body={`Dear Specialist,\n\nI would like to request your consultation for patient ${patient.patientName} (ID: ${patient.patientId}).\n\nCase details: ...\n\nThank you,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
                         buttonText="Contact Specialist"
