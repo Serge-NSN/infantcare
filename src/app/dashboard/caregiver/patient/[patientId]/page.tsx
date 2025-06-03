@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, Timestamp } from 'firebase/firestore';
-import { ArrowLeft, UserCircle, Hospital, CalendarDays, Stethoscope, Microscope, FileText as FileIcon, Edit, AlertTriangle, Info, Fingerprint } from 'lucide-react';
+import { ArrowLeft, UserCircle, Hospital, CalendarDays, Stethoscope, Microscope, FileText as FileIcon, Edit, AlertTriangle, Info, Fingerprint, UserCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -34,7 +34,9 @@ interface PatientData {
   registrationDateTime: Timestamp;
   feedbackStatus: string;
   caregiverUid: string;
-  // Add other fields as necessary, e.g., doctorFeedback, testResults
+  doctorFeedbackNotes?: string; // Added
+  doctorName?: string;          // Added
+  feedbackDateTime?: Timestamp; // Added
 }
 
 export default function CaregiverPatientDetailPage() {
@@ -218,13 +220,28 @@ export default function CaregiverPatientDetailPage() {
             </Card>
 
             <Card className="p-4 bg-secondary/30">
-                <CardTitle className="text-xl font-headline mb-3 flex items-center"><Microscope className="mr-2 h-5 w-5 text-primary" />Feedback Status</CardTitle>
-                <Badge variant={getStatusBadgeVariant(patient.feedbackStatus)} className="text-sm px-3 py-1">
-                  {patient.feedbackStatus}
-                </Badge>
-                <div className="mt-4 p-3 border rounded-md bg-background">
-                    <h4 className="font-semibold text-muted-foreground">Doctor's Feedback:</h4>
-                    <p className="text-sm text-muted-foreground italic">No feedback provided yet.</p>
+                <CardTitle className="text-xl font-headline mb-3 flex items-center"><Microscope className="mr-2 h-5 w-5 text-primary" />Case Status & Feedback</CardTitle>
+                <div className="space-y-1">
+                    <span className="text-sm font-semibold text-muted-foreground">Overall Status: </span>
+                    <Badge variant={getStatusBadgeVariant(patient.feedbackStatus)} className="text-sm px-3 py-1">
+                        {patient.feedbackStatus}
+                    </Badge>
+                </div>
+                <div className="mt-4 p-3 border rounded-md bg-background shadow-sm">
+                    <h4 className="font-semibold text-foreground mb-1 flex items-center"><UserCheck className="w-4 h-4 mr-2 text-primary" /> Doctor's Feedback:</h4>
+                    {patient.doctorFeedbackNotes ? (
+                        <>
+                            <p className="text-sm text-foreground whitespace-pre-wrap">{patient.doctorFeedbackNotes}</p>
+                            {patient.doctorName && (
+                                <p className="text-xs text-muted-foreground mt-2">
+                                    Provided by: Dr. {patient.doctorName}
+                                    {patient.feedbackDateTime?.toDate && ` on ${new Date(patient.feedbackDateTime.toDate()).toLocaleDateString()}`}
+                                </p>
+                            )}
+                        </>
+                    ) : (
+                        <p className="text-sm text-muted-foreground italic">No feedback provided by a doctor yet.</p>
+                    )}
                 </div>
             </Card>
             
@@ -234,7 +251,6 @@ export default function CaregiverPatientDetailPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                   {patient.uploadedFileNames.map((fileName, index) => {
                     const isImageFile = typeof fileName === 'string' && /\.(jpe?g|png|gif|webp)$/i.test(fileName);
-                    // console.log(`DEBUG: Checking file: '${fileName}', type: ${typeof fileName}, isImage: ${isImageFile}`);
                     
                     return (
                       <div key={index} className="flex flex-col items-center text-center p-2 border rounded-md bg-background shadow-sm">
@@ -273,7 +289,8 @@ export default function CaregiverPatientDetailPage() {
           </div>
         </CardContent>
         <CardFooter className="text-xs text-muted-foreground">
-          Last updated: {patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleDateString() : 'N/A'}
+          Patient record last formally updated: {patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleDateString() : 'N/A'}
+          {patient.feedbackDateTime?.toDate && patient.feedbackStatus === 'Reviewed by Doctor' && ` (Doctor feedback: ${new Date(patient.feedbackDateTime.toDate()).toLocaleDateString()})`}
         </CardFooter>
       </Card>
     </div>
@@ -282,3 +299,4 @@ export default function CaregiverPatientDetailPage() {
     
 
     
+
