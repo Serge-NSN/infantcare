@@ -22,12 +22,11 @@ service cloud.firestore {
 
       allow update: if request.auth != null &&
                        (
-                         (
+                         ( // Caregivers can update their own patient records
                            resource.data.caregiverUid == request.auth.uid
                          ) ||
-                         (
+                         ( // Any Medical Doctor can update specific feedback fields
                            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Medical Doctor' &&
-                           (resource.data.doctorId == null || resource.data.doctorId == "" || resource.data.doctorId == request.auth.uid) &&
                            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['doctorFeedbackNotes', 'feedbackStatus', 'doctorId', 'doctorName', 'feedbackDateTime'])
                          )
                        );
