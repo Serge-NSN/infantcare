@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Patient {
   id: string; // Firestore document ID
@@ -113,47 +114,65 @@ export default function ViewPatientsPage() {
             <p className="text-muted-foreground text-center py-4">No patients registered yet.</p>
           )}
           {!loading && !error && patients.length > 0 && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Patient Name</TableHead>
-                  <TableHead>Patient ID</TableHead>
-                  <TableHead>Age</TableHead>
-                  <TableHead>Registered On</TableHead>
-                  <TableHead>Feedback Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {patients.map((patient) => (
-                  <TableRow key={patient.id}>
-                    <TableCell className="font-medium">{patient.patientName}</TableCell>
-                    <TableCell>{patient.patientId}</TableCell>
-                    <TableCell>{patient.patientAge}</TableCell>
-                    <TableCell>
-                      {patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleDateString() : 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                       <Badge variant={getStatusBadgeVariant(patient.feedbackStatus)}>
-                        {patient.feedbackStatus}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/dashboard/caregiver/patient/${patient.id}`}>
-                          <Eye className="mr-1 h-4 w-4" /> View Details
-                        </Link>
-                      </Button>
-                      <Button variant="secondary" size="sm" asChild>
-                        <Link href={`/dashboard/caregiver/patient/${patient.id}/edit`}>
-                          <Edit className="mr-1 h-4 w-4" /> Modify
-                        </Link>
-                      </Button>
-                    </TableCell>
+            <TooltipProvider>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Patient Name</TableHead>
+                    <TableHead>Patient ID</TableHead>
+                    <TableHead>Age</TableHead>
+                    <TableHead>Registered On</TableHead>
+                    <TableHead>Feedback Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {patients.map((patient) => (
+                    <TableRow key={patient.id}>
+                      <TableCell className="font-medium">{patient.patientName}</TableCell>
+                      <TableCell>{patient.patientId}</TableCell>
+                      <TableCell>{patient.patientAge}</TableCell>
+                      <TableCell>
+                        {patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleDateString() : 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                         <Badge variant={getStatusBadgeVariant(patient.feedbackStatus)}>
+                          {patient.feedbackStatus}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="outline" size="icon" asChild>
+                              <Link href={`/dashboard/caregiver/patient/${patient.id}`}>
+                                <Eye className="h-4 w-4" />
+                                <span className="sr-only">View Details</span>
+                              </Link>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>View Details</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="secondary" size="icon" asChild>
+                              <Link href={`/dashboard/caregiver/patient/${patient.id}/edit`}>
+                                <Edit className="h-4 w-4" />
+                                <span className="sr-only">Modify</span>
+                              </Link>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Modify</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TooltipProvider>
           )}
         </CardContent>
       </Card>
