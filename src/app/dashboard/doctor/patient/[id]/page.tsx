@@ -23,7 +23,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 interface PatientData {
   id: string;
   patientName: string;
-  patientId: string; 
+  patientId: string;
   hospitalId: string;
   patientAge: string;
   patientGender: string;
@@ -142,7 +142,7 @@ export default function DoctorPatientDetailPage() {
       doctorName: currentUser.displayName || currentUser.email?.split('@')[0] || 'N/A',
       feedbackDateTime: serverTimestamp()
     };
-
+    
     console.log("Current patient data (resource.data):", patient);
     console.log("Attempting to update patient with feedbackData (request.resource.data):", feedbackData);
     console.log("Current user (request.auth):", {
@@ -151,6 +151,7 @@ export default function DoctorPatientDetailPage() {
       email: currentUser.email,
     });
 
+
     try {
       const patientDocRef = doc(db, "patients", patient.id);
       await updateDoc(patientDocRef, feedbackData);
@@ -158,8 +159,8 @@ export default function DoctorPatientDetailPage() {
       toast({ title: "Feedback Submitted", description: "Patient record updated successfully." });
       setPatient(prev => prev ? {
          ...prev,
-         ...feedbackData, 
-         feedbackDateTime: Timestamp.now() 
+         ...feedbackData,
+         feedbackDateTime: Timestamp.now()
         } : null);
     } catch (err: any) {
       console.error("Error submitting feedback (raw):", err);
@@ -236,7 +237,7 @@ export default function DoctorPatientDetailPage() {
           <CardHeader><CardTitle className="text-destructive flex items-center justify-center gap-2"><AlertTriangle /> Error</CardTitle></CardHeader>
           <CardContent>
             <p className="text-destructive">{error}</p>
-            <Button asChild className="mt-4" onClick={() => router.back()}>
+            <Button className="mt-4" onClick={() => router.back()}>
                 <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
             </Button>
           </CardContent>
@@ -272,9 +273,9 @@ export default function DoctorPatientDetailPage() {
             <Card className="shadow-xl">
               <CardHeader>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                    <Image 
-                        src={`https://placehold.co/80x80.png?text=${patient.patientName.substring(0,1)}`} 
-                        alt="Patient Avatar" width={80} height={80} 
+                    <Image
+                        src={`https://placehold.co/80x80.png?text=${patient.patientName.substring(0,1)}`}
+                        alt="Patient Avatar" width={80} height={80}
                         className="rounded-full border-2 border-primary"
                         data-ai-hint="child face"
                     />
@@ -297,9 +298,9 @@ export default function DoctorPatientDetailPage() {
                         <CardTitle className="text-xl font-headline mb-3 flex items-center"><Hospital className="mr-2 h-5 w-5 text-primary" />Hospital & Registration</CardTitle>
                         <DetailItem label="Hospital Name" value={patient.hospitalName} />
                         <DetailItem label="Hospital ID" value={patient.hospitalId} icon={Fingerprint} />
-                         <DetailItem 
-                            label="Registered On" 
-                            value={patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleString() : 'N/A'} 
+                         <DetailItem
+                            label="Registered On"
+                            value={patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleString() : 'N/A'}
                             icon={CalendarDays}
                         />
                     </Card>
@@ -329,7 +330,7 @@ export default function DoctorPatientDetailPage() {
                           <div key={index} className="flex flex-col items-center text-center p-2 border rounded-md bg-background shadow-sm">
                             {isImageFile ? (
                               <Image
-                                src={`https://placehold.co/150x150.png`} 
+                                src={`https://placehold.co/150x150.png`}
                                 alt={fileName || 'Uploaded image'}
                                 width={150}
                                 height={150}
@@ -376,11 +377,11 @@ export default function DoctorPatientDetailPage() {
                     <CardDescription>Enter your diagnosis, notes, or recommendations.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                    <Textarea 
+                    <Textarea
                         value={feedbackText}
                         onChange={(e) => setFeedbackText(e.target.value)}
-                        placeholder="Enter your detailed feedback here..." 
-                        rows={8} 
+                        placeholder="Enter your detailed feedback here..."
+                        rows={8}
                         className="font-body"
                         disabled={isSubmittingFeedback || patient.feedbackStatus === 'Reviewed by Doctor' && patient.doctorId !== currentUser?.uid && !!patient.doctorId}
                     />
@@ -390,8 +391,8 @@ export default function DoctorPatientDetailPage() {
                      {patient.feedbackStatus === 'Reviewed by Doctor' && patient.doctorId === currentUser?.uid && (
                         <p className="text-xs text-blue-600">You have already provided feedback. You can update it here.</p>
                      )}
-                    <Button 
-                        onClick={handleFeedbackSubmit} 
+                    <Button
+                        onClick={handleFeedbackSubmit}
                         disabled={isSubmittingFeedback || !feedbackText.trim() || (patient.feedbackStatus === 'Reviewed by Doctor' && patient.doctorId !== currentUser?.uid && !!patient.doctorId) }
                         className="w-full bg-accent text-accent-foreground hover:bg-accent/80"
                     >
@@ -405,7 +406,7 @@ export default function DoctorPatientDetailPage() {
                     <CardTitle className="text-xl font-headline">Communication</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                     <EmailButton 
+                     <EmailButton
                         receiverEmail={caregiverProfile?.email || "caregiver-email-not-found@example.com"}
                         subject={`Regarding Patient: ${patient.patientName} (ID: ${patient.patientId}) - Request for Information`}
                         body={`Dear Caregiver,\n\nCould you please provide additional information or clarification regarding patient ${patient.patientName} (ID: ${patient.patientId})?\n\nSpecifically, I need...\n\nThank you,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
@@ -415,8 +416,8 @@ export default function DoctorPatientDetailPage() {
                         disabled={!caregiverProfile?.email}
                         title={!caregiverProfile?.email ? "Caregiver email not available" : ""}
                     />
-                    <EmailButton 
-                        receiverEmail="specialist-consult@infantcare.example.com" 
+                    <EmailButton
+                        receiverEmail="specialist-consult@infantcare.example.com"
                         subject={`Specialist Consultation Request for Patient: ${patient.patientName} (ID: ${patient.patientId})`}
                         body={`Dear Specialist,\n\nI would like to request your consultation for patient ${patient.patientName} (ID: ${patient.patientId}).\n\nCase details: ...\n\nThank you,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
                         buttonText="Contact Specialist"
