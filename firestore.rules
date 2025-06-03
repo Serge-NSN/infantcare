@@ -6,37 +6,32 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read, update: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null; // Client app logic should ensure doc ID is user's UID
+      allow create: if request.auth != null;
       allow delete: if false;
     }
 
     match /patients/{patientDocId} {
-      // Caregiver: Can create if caregiverUid in new doc matches their auth.uid
       allow create: if request.auth != null &&
                        request.resource.data.caregiverUid == request.auth.uid;
 
-      // Read: Allowed if user is the caregiver OR is a 'Medical Doctor'
-      allow read: if request.auth != null && (
-                    resource.data.caregiverUid == request.auth.uid ||
-                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Medical Doctor'
-                  );
+      allow read: if request.auth != null &&
+                     (
+                       resource.data.caregiverUid == request.auth.uid ||
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Medical Doctor'
+                     );
 
-      // Update:
-      // 1. Caregiver can update any field on their patient's record.
-      // 2. Doctor can update only specific feedback-related fields under specific conditions.
-      allow update: if request.auth != null && (
-                      // Condition 1: User is the caregiver for this patient
-                      (resource.data.caregiverUid == request.auth.uid)
-                      ||
-                      // Condition 2: User is a Medical Doctor submitting feedback
-                      (
-                        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Medical Doctor' &&
-                        (resource.data.doctorId == null || resource.data.doctorId == "" || resource.data.doctorId == request.auth.uid) && // Doctor can provide initial feedback or update their own
-                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['doctorFeedbackNotes', 'feedbackStatus', 'doctorId', 'doctorName', 'feedbackDateTime'])
-                      )
-                    );
+      allow update: if request.auth != null &&
+                       (
+                         (
+                           resource.data.caregiverUid == request.auth.uid
+                         ) ||
+                         (
+                           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Medical Doctor' &&
+                           (resource.data.doctorId == null || resource.data.doctorId == "" || resource.data.doctorId == request.auth.uid) &&
+                           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['doctorFeedbackNotes', 'feedbackStatus', 'doctorId', 'doctorName', 'feedbackDateTime'])
+                         )
+                       );
 
-      // Delete: Allowed only if user is the caregiver
       allow delete: if request.auth != null &&
                        resource.data.caregiverUid == request.auth.uid;
     }
