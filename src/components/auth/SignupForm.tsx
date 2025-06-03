@@ -91,15 +91,28 @@ export function SignupForm() {
         description: "Your account has been created. Please log in.",
       });
       form.reset();
-      router.push("/login"); // Redirect to login page
+      
+      // Attempt navigation and catch potential errors specifically from router.push
+      router.push("/login")
+        .catch(navigationError => {
+          console.error("Error during router.push('/login'):", navigationError);
+          toast({
+            title: "Navigation Error",
+            description: "Could not automatically redirect to the login page. Please try navigating manually.",
+            variant: "destructive",
+          });
+        });
 
     } catch (error: any) {
-      console.error("Error signing up:", error);
+      console.error("Error signing up (outer catch):", error);
       let errorMessage = "Failed to sign up. Please try again.";
       if (error.code === "auth/email-already-in-use") {
         errorMessage = "This email address is already in use.";
       } else if (error.code === "firestore/permission-denied") {
         errorMessage = "Failed to save user data. Please check Firestore rules."
+      } else if (error.message && typeof error.message === 'string' && error.message.toLowerCase().includes("failed to fetch")) {
+        // If a Firebase operation itself failed with "Failed to fetch"
+        errorMessage = "A network error occurred during signup. Please check your connection and try again.";
       }
       toast({
         title: "Signup Failed",
@@ -240,5 +253,3 @@ export function SignupForm() {
     </Form>
   );
 }
-
-    
