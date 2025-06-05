@@ -4,167 +4,172 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
-import { Users, Eye, BarChart3, AlertTriangle } from 'lucide-react';
+import { BarChart3, AlertTriangle, ListFilter, Users, ClipboardCheck, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, Timestamp, orderBy } from 'firebase/firestore';
+import { collection, query, where, getCountFromServer } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
-interface PatientForDoctorList {
-  id: string; // Firestore document ID
-  patientName: string;
-  patientAge: string;
-  registrationDateTime: Timestamp;
-  feedbackStatus: string; 
+interface DoctorDashboardStats {
+  awaitingReviewCount: number;
+  myReviewedCount: number;
 }
 
 export default function DoctorDashboardPage() {
   const { currentUser, loading: authLoading } = useAuth();
-  const [patients, setPatients] = useState<PatientForDoctorList[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<DoctorDashboardStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [doctorName, setDoctorName] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchPatientsForReview() {
+    if (currentUser) {
+        setDoctorName(currentUser.displayName || localStorage.getItem('userFullName') || currentUser.email?.split('@')[0] || 'Doctor');
+    }
+
+    async function fetchDoctorStats() {
       if (authLoading || !currentUser) {
         if(!currentUser && !authLoading) {
-            setLoading(false); 
+             setLoadingStats(false);
         }
         return;
       }
 
-      setLoading(true);
+      setLoadingStats(true);
       setError(null);
       try {
         const patientsCollectionRef = collection(db, 'patients');
-        const q = query(
-          patientsCollectionRef, 
-          where('feedbackStatus', '==', 'Pending Doctor Review'),
-          orderBy('registrationDateTime', 'desc') // Sorting by newest first
-        );
-        
-        const querySnapshot = await getDocs(q);
-        const fetchedPatients: PatientForDoctorList[] = querySnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            patientName: data.patientName,
-            patientAge: data.patientAge,
-            registrationDateTime: data.registrationDateTime,
-            feedbackStatus: data.feedbackStatus,
-          } as PatientForDoctorList;
-        });
-        setPatients(fetchedPatients); 
-      } catch (err: any) {
-        console.error("Error fetching patients for doctor review (full object):", err);
-        console.error("Error code:", err.code); 
-        console.error("Error message:", err.message); 
 
-        let specificError = "Could not load patient list for review. Please try again later. Check the browser console for more details from Firestore.";
-        if (err.code === "unavailable" || err.message?.includes("client is offline")) {
-          specificError = "Could not load patients: Database is offline. Please check your internet connection.";
+        // Count for patients awaiting any doctor's review
+        const awaitingReviewQuery = query(patientsCollectionRef, where('feedbackStatus', '==', 'Pending Doctor Review'));
+        const awaitingReviewSnapshot = await getCountFromServer(awaitingReviewQuery);
+        const awaitingReviewCount = awaitingReviewSnapshot.data().count;
+
+        // Count for patients reviewed by the current doctor
+        const myReviewedQuery = query(
+            patientsCollectionRef,
+            where('doctorId', '==', currentUser.uid),
+            where('feedbackStatus', '==', 'Reviewed by Doctor')
+        );
+        const myReviewedSnapshot = await getCountFromServer(myReviewedQuery);
+        const myReviewedCount = myReviewedSnapshot.data().count;
+
+        setStats({
+          awaitingReviewCount,
+          myReviewedCount,
+        });
+      } catch (err: any) {
+        console.error("Error fetching doctor dashboard stats:", err);
+        let specificError = "Could not load dashboard statistics. Please try again later.";
+         if (err.code === "unavailable" || err.message?.includes("client is offline")) {
+          specificError = "Could not load statistics: Database is offline. Please check your internet connection.";
         } else if (err.code === "failed-precondition") {
-          specificError = "Could not load patients: This most likely means a required Firestore index is missing. Please check your browser's developer console for a link to create the index in your Firebase project, or create it manually in Firestore. The index should be on the 'patients' collection, with fields: feedbackStatus (Ascending) AND registrationDateTime (Descending).";
-        } else if (err.code === "permission-denied") {
-            specificError = "Could not load patients: Permission denied. Please check your Firestore security rules to ensure doctors can read the 'patients' collection with the applied filters.";
+          specificError = "Could not load statistics: This often indicates a missing database index. Please check your browser's developer console for a link to create the necessary Firestore indexes. For 'My Reviewed Patients', an index on 'patients' collection for fields: doctorId (ASC) and feedbackStatus (ASC) might be needed. For 'Awaiting Review', an index for feedbackStatus (ASC) might be needed.";
         }
         setError(specificError);
       } finally {
-        setLoading(false);
+        setLoadingStats(false);
       }
     }
-    fetchPatientsForReview();
+    fetchDoctorStats();
   }, [currentUser, authLoading]);
+
 
   if (authLoading) {
     return (
       <div className="container mx-auto py-8 px-4">
         <Skeleton className="h-10 w-1/3 mb-6" />
-        <Card className="shadow-xl">
-          <CardHeader>
-            <Skeleton className="h-8 w-1/2 mb-2" />
-            <Skeleton className="h-5 w-3/4" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-40 w-full" />
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-32 w-full" />
+        </div>
+        <Skeleton className="h-40 w-full" />
       </div>
     );
   }
 
   return (
     <div className="container mx-auto py-8 px-4">
-      <div className="flex items-center gap-3 mb-6">
-        <BarChart3 className="h-8 w-8 text-primary" />
-        <h1 className="text-3xl font-headline">Medical Doctor Portal</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+        <div>
+          <h1 className="text-3xl font-headline">Welcome, Dr. {doctorName || <Skeleton className="h-8 w-40 inline-block" />}!</h1>
+          <p className="text-muted-foreground font-body">Your medical portal overview.</p>
+        </div>
+      </div>
+      
+      {error && (
+        <Card className="mb-6 border-destructive bg-destructive/10">
+          <CardHeader>
+            <CardTitle className="text-destructive flex items-center gap-2">
+              <AlertTriangle /> Error Loading Stats
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-destructive">{error}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-xl font-headline flex items-center justify-between">
+              Patients Awaiting Review
+              <Clock className="h-6 w-6 text-muted-foreground" />
+            </CardTitle>
+            <CardDescription>Global count of patients pending initial doctor review.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingStats ? (
+              <Skeleton className="h-10 w-1/4" />
+            ) : (
+              <p className="text-4xl font-bold">{stats?.awaitingReviewCount ?? 0}</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-xl font-headline flex items-center justify-between">
+              My Reviewed Patients
+              <ClipboardCheck className="h-6 w-6 text-muted-foreground" />
+            </CardTitle>
+            <CardDescription>Patients you have personally provided feedback for.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingStats ? (
+              <Skeleton className="h-10 w-1/4" />
+            ) : (
+              <p className="text-4xl font-bold">{stats?.myReviewedCount ?? 0}</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Card className="shadow-xl">
         <CardHeader>
-          <CardTitle className="text-2xl font-headline flex items-center gap-2"><Users className="w-6 h-6" /> Patients Awaiting Review</CardTitle>
+          <CardTitle className="text-2xl font-headline flex items-center gap-2">
+            <BarChart3 className="w-6 h-6" /> Quick Actions
+          </CardTitle>
           <CardDescription className="font-body">
-            List of patients whose information requires your medical feedback.
+            Navigate to patient lists and management tools.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          {loading && (
-            <div className="space-y-2">
-              {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-            </div>
-          )}
-          {!loading && error && (
-             <Card className="border-destructive bg-destructive/10 p-4">
-              <CardTitle className="text-destructive flex items-center gap-2 text-lg">
-                <AlertTriangle /> Error Loading Patients
-              </CardTitle>
-              <CardDescription className="text-destructive">
-                {error}
-              </CardDescription>
-            </Card>
-          )}
-          {!loading && !error && patients.length === 0 && (
-            <p className="text-muted-foreground text-center py-4">No patients currently awaiting review.</p>
-          )}
-          {!loading && !error && patients.length > 0 && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Patient Name</TableHead>
-                  <TableHead>Age</TableHead>
-                  <TableHead>Registered On</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {patients.map((patient) => (
-                  <TableRow key={patient.id}>
-                    <TableCell className="font-medium">{patient.patientName}</TableCell>
-                    <TableCell>{patient.patientAge}</TableCell>
-                    <TableCell>{patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleDateString() : 'N/A'}</TableCell>
-                    <TableCell>
-                      <Badge variant={patient.feedbackStatus === 'Pending Doctor Review' ? 'destructive' : 'default'}>
-                        {patient.feedbackStatus}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button asChild variant="outline" size="sm">
-                        <Link href={`/dashboard/doctor/patient/${patient.id}`}><Eye className="mr-1 h-4 w-4" /> View & Provide Feedback</Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+        <CardContent className="flex flex-col sm:flex-row gap-4">
+          <Button asChild variant="default" size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90">
+            <Link href="/dashboard/doctor/awaiting-review">
+              <ListFilter className="mr-2 h-5 w-5" /> View Patients Awaiting Review
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="lg">
+            <Link href="/dashboard/doctor/view-all-patients">
+              <Users className="mr-2 h-5 w-5" /> View All Patient Records
+            </Link>
+          </Button>
         </CardContent>
       </Card>
     </div>
   );
 }
-
