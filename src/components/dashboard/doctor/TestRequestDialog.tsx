@@ -42,7 +42,7 @@ export function TestRequestDialog({ patientId, patientName, onTestRequested }: T
   const { currentUser } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { control, handleSubmit, reset, formState: { errors } } = useForm<TestRequestFormValues>({
     resolver: zodResolver(testRequestSchema),
