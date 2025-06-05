@@ -4,22 +4,25 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Rules for the 'users' collection
+    // Users Collection
     match /users/{userId} {
+      // Allow users to read and update their own document
       allow read, update: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null; // Allow any authenticated user to create their own user document
-      allow delete: if false; // Generally, users should not delete their own accounts directly
+      // Allow authenticated users to create their own user document (e.g., on signup)
+      allow create: if request.auth != null && request.auth.uid == userId; // Or simply request.auth != null if signup creates it
+      // Disallow deleting user documents
+      allow delete: if false;
     }
 
-    // Rules for the 'patients' collection
+    // Patients Collection
     match /patients/{patientDocId} {
-      // Caregivers can create patient records if they are authenticated and set themselves as caregiverUid
+      // Allow creation if the user is authenticated and is the caregiverUid in the new document
       allow create: if request.auth != null &&
                        request.resource.data.caregiverUid == request.auth.uid;
 
-      // Authenticated users can read patient data if:
-      // 1. They are the caregiver assigned to the patient OR
-      // 2. Their user document in /users has role 'Medical Doctor'
+      // Allow read if user is authenticated AND:
+      // 1. They are the caregiver linked to the patient OR
+      // 2. Their user document in '/users' collection exists AND has role 'Medical Doctor'
       allow read: if request.auth != null &&
                      (
                        resource.data.caregiverUid == request.auth.uid ||
@@ -29,46 +32,35 @@ service cloud.firestore {
                        )
                      );
 
-      // Caregivers can update patient records they manage.
-      // Doctors can update specific fields related to their feedback, or request tests.
+      // Allow update if user is authenticated AND:
+      // 1. They are the caregiver linked to the patient (can update most fields) OR
+      // 2. They are a 'Medical Doctor' (historically for specific feedback fields - this part might be less relevant now with subcollections)
       allow update: if request.auth != null &&
                        (
-                         // Caregiver can update their own patient records
-                         (
+                         ( // Caregiver update rule
                            resource.data.caregiverUid == request.auth.uid
-                         ) ||
-                         // Medical Doctors can update specific patient fields (e.g. if test results are directly added to patient doc)
-                         // This rule might need refinement based on exact fields doctors are allowed to update on the main patient doc.
-                         // Currently, feedback and test requests are in subcollections.
-                         // This part of the rule for doctors updating the main patient doc might be largely unused if all their actions
-                         // are on subcollections. It's kept minimal here. Consider if doctors need to update 'feedbackStatus' on main doc.
-                         (
-                           exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Medical Doctor' &&
-                           // Example: Allow doctor to update feedbackStatus or if they are assigned as the main doctorId
-                           (
-                             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['feedbackStatus', 'uploadedFileNames'])
-                             // If you have a doctorId field on the patient doc directly:
-                             // (resource.data.doctorId == null || resource.data.doctorId == "" || resource.data.doctorId == request.auth.uid)
-                           )
                          )
+                         // The following doctor update rule on the main patient document is largely superseded by
+                         // feedback being in a subcollection. Adjust if doctors need to update specific main patient doc fields.
+                         // ||
+                         // ( // Doctor update rule (for specific fields, if any, on the main patient doc)
+                         //   exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                         //   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Medical Doctor' &&
+                         //   request.resource.data.diff(resource.data).affectedKeys().hasOnly(['someFieldDoctorCanUpdateOnMainDoc']) // Example
+                         // )
                        );
 
-      // Caregivers can delete patient records they manage.
+      // Allow delete if the user is authenticated and is the caregiverUid
       allow delete: if request.auth != null &&
                        resource.data.caregiverUid == request.auth.uid;
 
-      // Subcollection for patient feedbacks
+      // Subcollection for Patient Feedbacks
       match /patientFeedbacks/{feedbackId} {
-        // Doctors can create feedback entries.
-        // The feedback document should contain doctorId, doctorName, patientId.
+        // Allow doctors to create feedback
         allow create: if request.auth != null &&
                          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Medical Doctor' &&
-                         request.resource.data.doctorId == request.auth.uid &&
-                         request.resource.data.patientId == patientDocId;
-
-        // Caregivers of the patient and any Medical Doctor can read feedback.
+                         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Medical Doctor';
+        // Allow read by caregiver of the parent patient, or any doctor
         allow read: if request.auth != null &&
                        (
                          get(/databases/$(database)/documents/patients/$(patientDocId)).data.caregiverUid == request.auth.uid ||
@@ -77,70 +69,43 @@ service cloud.firestore {
                            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Medical Doctor'
                          )
                        );
-        // Feedback is generally immutable once created by a doctor.
-        allow update: if false;
-        allow delete: if false; // Or allow deleting by the doctor who created it if needed
-                         // request.auth != null && resource.data.doctorId == request.auth.uid;
+        allow update, delete: if false; // Generally, feedback shouldn't be updated/deleted easily
       }
 
-      // Subcollection for test requests
+      // Subcollection for Test Requests
       match /testRequests/{requestId} {
-        // Doctors can create test requests.
-        // The request document should contain requestingDoctorId.
+        // Allow doctors to create test requests
         allow create: if request.auth != null &&
                          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-                         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Medical Doctor' &&
-                         request.resource.data.requestingDoctorId == request.auth.uid &&
-                         request.resource.data.patientId == patientDocId;
+                         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Medical Doctor';
 
-        // Caregivers of the patient and the requesting Doctor can read test requests.
+        // Allow read by caregiver of the parent patient, or the requesting doctor, or any doctor
         allow read: if request.auth != null &&
                        (
                          get(/databases/$(database)/documents/patients/$(patientDocId)).data.caregiverUid == request.auth.uid ||
-                         resource.data.requestingDoctorId == request.auth.uid || // doctor who requested
-                          ( // Any doctor can view requests for now, refine if needed
+                         resource.data.requestingDoctorId == request.auth.uid ||
+                         (
                            exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
                            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Medical Doctor'
-                          )
-                       );
-
-        // Caregivers can update test requests (e.g., to mark as fulfilled, add results).
-        // Doctor who requested it can update (e.g. add notes after reviewing fulfilled test)
-        allow update: if request.auth != null &&
-                       (
-                         // Caregiver fulfilling the request
-                         (
-                           get(/databases/$(database)/documents/patients/$(patientDocId)).data.caregiverUid == request.auth.uid &&
-                           request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'resultNotes', 'resultFileNames', 'fulfilledAt'])
-                         ) ||
-                         // Doctor reviewing the fulfilled request
-                         (
-                           resource.data.requestingDoctorId == request.auth.uid &&
-                           request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'doctorNotes']) &&
-                           resource.data.status == 'Fulfilled' // Doctor can only add notes after caregiver fulfills
                          )
                        );
-        // Doctors or Caregivers might delete pending requests. Define as needed.
-        allow delete: if request.auth != null &&
-                         (
-                            get(/databases/$(database)/documents/patients/$(patientDocId)).data.caregiverUid == request.auth.uid ||
-                            resource.data.requestingDoctorId == request.auth.uid
-                         ) && resource.data.status == 'Pending';
+        // Allow caregiver of the parent patient to update (e.g., fulfill the request)
+        allow update: if request.auth != null &&
+                         get(/databases/$(database)/documents/patients/$(patientDocId)).data.caregiverUid == request.auth.uid;
+
+        allow delete: if false; // Test requests probably shouldn't be deleted directly
       }
     }
 
-    // Rules for the 'notifications' collection (root collection)
+    // Notifications Collection (Root Collection)
     match /notifications/{notificationId} {
-      // Only the recipient can read their notifications.
-      allow read: if request.auth != null && resource.data.recipientUid == request.auth.uid;
-      // Only the recipient can mark their notifications as read (update the isRead field).
-      allow update: if request.auth != null &&
-                       resource.data.recipientUid == request.auth.uid &&
-                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
-      // Notifications are created by Cloud Functions (Admin SDK), not directly by users.
-      allow create: if false;
-      allow delete: if false; // Or allow recipient to delete: resource.data.recipientUid == request.auth.uid;
+        // Only the recipient can read their notifications
+        allow read: if request.auth != null && resource.data.recipientUid == request.auth.uid;
+        // Only the recipient can update their notification (e.g., mark as read)
+        allow update: if request.auth != null && resource.data.recipientUid == request.auth.uid &&
+                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
+        // Disallow direct creation/deletion from client, should be handled by Cloud Functions
+        allow create, delete: if false;
     }
   }
 }
-
