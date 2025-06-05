@@ -6,24 +6,27 @@ import * as React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowLeft, UserCircle, Stethoscope, FlaskConical, FileScan, Activity, MailIcon, Info, CalendarDays, FileText as FileIcon, MessageSquare, AlertTriangle, Fingerprint, Send, Microscope, Hospital } from "lucide-react";
+import { ArrowLeft, UserCircle, Stethoscope, FlaskConical, FileScan, Activity, MailIcon, Info, CalendarDays, FileText as FileIcon, MessageSquare, AlertTriangle, Fingerprint, Send, Microscope, Hospital, PlusCircle, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { EmailButton } from '@/components/shared/EmailButton';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, updateDoc, Timestamp, serverTimestamp } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { doc, getDoc, updateDoc, Timestamp, serverTimestamp, collection, addDoc, query, orderBy, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import { useEffect, useState, useCallback } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { FeedbackList, type FeedbackItem } from '@/components/dashboard/shared/FeedbackList';
+import { TestRequestDialog } from '@/components/dashboard/doctor/TestRequestDialog';
+import { TestRequestList, type TestRequestItem } from '@/components/dashboard/shared/TestRequestList';
 
 interface PatientData {
   id: string;
   patientName: string;
-  patientId: string;
+  patientId: string; // System-generated patient record ID
   hospitalId: string;
   patientAge: string;
   patientGender: string;
@@ -36,26 +39,15 @@ interface PatientData {
   insuranceDetails?: string;
   uploadedFileNames?: string[];
   registrationDateTime: Timestamp;
-  feedbackStatus: string;
+  feedbackStatus: string; // Overall status, might be deprecated or re-purposed
   caregiverUid: string;
-  doctorFeedbackNotes?: string;
-  doctorId?: string;
-  doctorName?: string;
-  feedbackDateTime?: Timestamp;
+  // Fields from main doc for doctor feedback are removed, use patientFeedbacks subcollection
 }
 
 interface CaregiverProfile {
   email?: string;
   fullName?: string;
 }
-
-
-const testCategories = [
-  { name: "Laboratory Test", icon: FlaskConical, description: "Blood work, urine tests, etc." },
-  { name: "Screening Test", icon: FileScan, description: "Developmental, hearing, vision." },
-  { name: "Images", icon: Activity, description: "X-rays, Ultrasounds, MRIs." },
-  { name: "Grams", icon: Stethoscope, description: "EEG, ECG." },
-];
 
 export default function DoctorPatientDetailPage() {
   const params = useParams();
@@ -66,117 +58,138 @@ export default function DoctorPatientDetailPage() {
 
   const [patient, setPatient] = useState<PatientData | null>(null);
   const [caregiverProfile, setCaregiverProfile] = useState<CaregiverProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingPatient, setLoadingPatient] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [feedbackText, setFeedbackText] = useState('');
+  
+  const [newFeedbackText, setNewFeedbackText] = useState('');
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([]);
+  const [loadingFeedbacks, setLoadingFeedbacks] = useState(true);
+
+  const [testRequests, setTestRequests] = useState<TestRequestItem[]>([]);
+  const [loadingTestRequests, setLoadingTestRequests] = useState(true);
+
+  const fetchPatientData = useCallback(async () => {
+    if (!currentUser || !patientDocId) {
+      setError("Authentication error or missing patient ID.");
+      setLoadingPatient(false);
+      return;
+    }
+    setLoadingPatient(true);
+    setError(null);
+    try {
+      const patientDocRef = doc(db, "patients", patientDocId);
+      const patientDocSnap = await getDoc(patientDocRef);
+
+      if (patientDocSnap.exists()) {
+        const data = patientDocSnap.data() as Omit<PatientData, 'id'>;
+        // Doctors should be able to read any patient record as per current rules.
+        // No specific permission check against caregiverUid needed here for doctors.
+        setPatient({ id: patientDocSnap.id, ...data });
+
+        if (data.caregiverUid) {
+          const caregiverDocRef = doc(db, "users", data.caregiverUid);
+          const caregiverDocSnap = await getDoc(caregiverDocRef);
+          if (caregiverDocSnap.exists()) {
+            setCaregiverProfile(caregiverDocSnap.data() as CaregiverProfile);
+          }
+        }
+      } else {
+        setError("Patient not found.");
+        setPatient(null);
+      }
+    } catch (err: any) {
+      console.error("Error fetching patient data (raw):", err);
+      let specificError = "Could not load patient details. Please try again.";
+      if (err.code === 'permission-denied') {
+        specificError = `Permission denied when trying to read patient data. (Error: ${err.code})`;
+      } else if (err.code === 'unavailable') {
+        specificError = "Could not connect to the database to read patient data.";
+      }
+      setError(specificError);
+      console.error("Fetch Patient - Error code:", err.code);
+      console.error("Fetch Patient - Error message:", err.message);
+    } finally {
+      setLoadingPatient(false);
+    }
+  }, [currentUser, patientDocId]);
 
   useEffect(() => {
-    async function fetchPatientAndCaregiverData() {
-      if (authLoading || !currentUser || !patientDocId) {
-        if(!currentUser && !authLoading){
-            setError("Authentication required to view patient details.");
-            setLoading(false);
-        }
-        return;
-      }
-      setLoading(true);
-      setError(null);
-      try {
-        console.log(`Fetching patient data for doc ID: ${patientDocId} as user: ${currentUser.uid}`);
-        const patientDocRef = doc(db, "patients", patientDocId);
-        const patientDocSnap = await getDoc(patientDocRef);
-
-        if (patientDocSnap.exists()) {
-          const data = patientDocSnap.data() as Omit<PatientData, 'id'>;
-          const fetchedPatient = { id: patientDocSnap.id, ...data };
-          setPatient(fetchedPatient);
-          setFeedbackText(fetchedPatient.doctorFeedbackNotes || '');
-
-          if (data.caregiverUid) {
-            try {
-              const caregiverDocRef = doc(db, "users", data.caregiverUid);
-              const caregiverDocSnap = await getDoc(caregiverDocRef);
-              if (caregiverDocSnap.exists()) {
-                setCaregiverProfile(caregiverDocSnap.data() as CaregiverProfile);
-              } else {
-                 console.warn(`Caregiver profile not found for UID: ${data.caregiverUid}`);
-              }
-            } catch (caregiverError) {
-               console.error("Error fetching caregiver profile:", caregiverError);
-            }
-          }
-        } else {
-          setError("Patient not found.");
-          setPatient(null);
-        }
-      } catch (err: any) {
-        console.error("Error fetching patient data (raw):", err);
-        console.error("Fetch Patient - Error code:", err.code);
-        console.error("Fetch Patient - Error message:", err.message);
-        let specificError = "Could not load patient details. Please try again.";
-        if (err.code === 'permission-denied') {
-            specificError = `Permission denied when trying to read patient data. Please check Firestore security rules to ensure doctors can read patient records. (Error: ${err.code})`;
-        } else if (err.code === 'unavailable') {
-            specificError = "Could not connect to the database to read patient data. Please check your internet connection.";
-        }
-        setError(specificError);
-      } finally {
-        setLoading(false);
-      }
+    if (!authLoading) {
+      fetchPatientData();
     }
-    fetchPatientAndCaregiverData();
-  }, [authLoading, currentUser, patientDocId]);
+  }, [authLoading, fetchPatientData]);
+
+  useEffect(() => {
+    let unsubscribeFeedbacks: Unsubscribe | undefined;
+    let unsubscribeTestRequests: Unsubscribe | undefined;
+
+    if (patientDocId && currentUser) {
+      // Fetch Feedbacks
+      setLoadingFeedbacks(true);
+      const feedbacksQuery = query(collection(db, "patients", patientDocId, "patientFeedbacks"), orderBy("createdAt", "desc"));
+      unsubscribeFeedbacks = onSnapshot(feedbacksQuery, (snapshot) => {
+        const fetchedFeedbacks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FeedbackItem));
+        setFeedbacks(fetchedFeedbacks);
+        setLoadingFeedbacks(false);
+      }, (error) => {
+        console.error("Error fetching feedbacks:", error);
+        toast({ title: "Error loading feedback history", description: error.message, variant: "destructive" });
+        setLoadingFeedbacks(false);
+      });
+
+      // Fetch Test Requests
+      setLoadingTestRequests(true);
+      const testRequestsQuery = query(collection(db, "patients", patientDocId, "testRequests"), orderBy("requestedAt", "desc"));
+      unsubscribeTestRequests = onSnapshot(testRequestsQuery, (snapshot) => {
+        const fetchedTestRequests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TestRequestItem));
+        setTestRequests(fetchedTestRequests);
+        setLoadingTestRequests(false);
+      }, (error) => {
+        console.error("Error fetching test requests:", error);
+        toast({ title: "Error loading test requests", description: error.message, variant: "destructive" });
+        setLoadingTestRequests(false);
+      });
+    }
+    return () => {
+      if (unsubscribeFeedbacks) unsubscribeFeedbacks();
+      if (unsubscribeTestRequests) unsubscribeTestRequests();
+    };
+  }, [patientDocId, currentUser, toast]);
+
 
   const handleFeedbackSubmit = async () => {
-    if (!patient || !currentUser || !feedbackText.trim()) {
+    if (!patient || !currentUser || !newFeedbackText.trim()) {
       toast({ title: "Error", description: "Feedback cannot be empty.", variant: "destructive" });
       return;
     }
     setIsSubmittingFeedback(true);
 
-    const feedbackData: any = {
-      doctorFeedbackNotes: feedbackText.trim(),
-      feedbackStatus: 'Reviewed by Doctor',
+    const feedbackData = {
+      patientId: patient.id,
+      feedbackNotes: newFeedbackText.trim(),
       doctorId: currentUser.uid,
       doctorName: currentUser.displayName || currentUser.email?.split('@')[0] || 'N/A',
-      feedbackDateTime: serverTimestamp()
+      createdAt: serverTimestamp()
     };
     
-    console.log("Current patient data (resource.data):", patient);
-    console.log("Attempting to update patient with feedbackData (request.resource.data):", feedbackData);
-    console.log("Current user (request.auth):", {
-      uid: currentUser.uid,
-      displayName: currentUser.displayName,
-      email: currentUser.email,
-    });
-
-
     try {
-      const patientDocRef = doc(db, "patients", patient.id);
-      await updateDoc(patientDocRef, feedbackData);
+      const feedbacksCollectionRef = collection(db, "patients", patient.id, "patientFeedbacks");
+      await addDoc(feedbacksCollectionRef, feedbackData);
 
-      toast({ title: "Feedback Submitted", description: "Patient record updated successfully." });
-      setPatient(prev => prev ? {
-         ...prev,
-         ...feedbackData,
-         feedbackDateTime: Timestamp.now()
-        } : null);
+      toast({ title: "Feedback Added", description: "Your feedback has been recorded." });
+      setNewFeedbackText(''); // Clear textarea
+      // No need to update patient state directly, onSnapshot will handle it.
+      // Potentially update the main patient doc's feedbackStatus if needed for global view, or lastFeedbackAt
+      // await updateDoc(doc(db, "patients", patient.id), { feedbackStatus: 'Reviewed by Doctor', lastFeedbackAt: serverTimestamp() });
+
     } catch (err: any) {
       console.error("Error submitting feedback (raw):", err);
-      console.error("Error code:", err.code);
-      console.error("Error message:", err.message);
-
       let description = "Could not submit feedback. Please try again.";
       if (err.code === 'permission-denied') {
-        description = "Permission denied. Please check Firestore security rules for updating patient records. See console for data details.";
-      } else if (err.code === 'unavailable') {
-        description = "Could not connect to the database. Please check your internet connection.";
-      } else if (err.code) {
-        description = `Could not submit feedback (Error: ${err.code}). Please try again. See console for data details.`;
+        description = "Permission denied. Please check Firestore security rules for adding feedback.";
       }
-      
-      toast({ title: "Submission Failed", description: description, variant: "destructive" });
+      toast({ title: "Submission Failed", description, variant: "destructive" });
     } finally {
       setIsSubmittingFeedback(false);
     }
@@ -184,13 +197,12 @@ export default function DoctorPatientDetailPage() {
   
   const getStatusBadgeVariant = (status: string) => {
     if (status === 'Pending Doctor Review') return 'destructive';
-    if (status === 'Reviewed by Doctor') return 'secondary';
-    if (status === 'Specialist Feedback Provided') return 'default';
+    if (status === 'Reviewed by Doctor' || feedbacks.length > 0) return 'secondary'; // Update based on new feedback logic
     return 'outline';
   };
 
-  const DetailItem = ({ label, value, icon: IconComponent, fullWidth = false }: { label: string; value?: string | string[] | null; icon?: React.ElementType; fullWidth?: boolean }) => (
-    <div className={`mb-3 ${fullWidth ? 'md:col-span-2' : ''}`}>
+  const DetailItem = ({ label, value, icon: IconComponent }: { label: string; value?: string | string[] | null; icon?: React.ElementType }) => (
+    <div className="mb-3">
       <h4 className="text-sm font-semibold text-muted-foreground flex items-center">
         {IconComponent && <IconComponent className="mr-2 h-4 w-4 text-primary" />}
         {label}
@@ -207,13 +219,14 @@ export default function DoctorPatientDetailPage() {
     </div>
   );
 
+  const overallLoading = authLoading || loadingPatient;
 
-  if (loading || authLoading) {
+  if (overallLoading) {
     return (
       <div className="container mx-auto py-8 px-4 space-y-6">
         <Skeleton className="h-8 w-48 mb-6" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="md:col-span-2 shadow-xl">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2 shadow-xl">
                  <CardHeader><Skeleton className="h-20 w-full" /></CardHeader>
                  <CardContent className="space-y-4">
                     {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
@@ -223,6 +236,8 @@ export default function DoctorPatientDetailPage() {
                 <CardHeader><Skeleton className="h-10 w-3/4" /></CardHeader>
                 <CardContent className="space-y-4">
                     {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+                     <Skeleton className="h-20 w-full" />
+                     <Skeleton className="h-10 w-full" />
                 </CardContent>
             </Card>
         </div>
@@ -263,7 +278,7 @@ export default function DoctorPatientDetailPage() {
   return (
     <div className="container mx-auto py-8 px-4">
       <Button asChild variant="outline" className="mb-6">
-        <Link href="/dashboard/doctor">
+        <Link href="/dashboard/doctor/view-all-patients">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to Patient List
         </Link>
       </Button>
@@ -286,7 +301,7 @@ export default function DoctorPatientDetailPage() {
                         </CardDescription>
                         <div className="mt-2">
                             <Badge variant={getStatusBadgeVariant(patient.feedbackStatus)} className="text-sm px-3 py-1">
-                                {patient.feedbackStatus}
+                                {feedbacks.length > 0 ? `${feedbacks.length} Feedback entries` : patient.feedbackStatus}
                             </Badge>
                         </div>
                     </div>
@@ -321,7 +336,7 @@ export default function DoctorPatientDetailPage() {
                 </Card>
 
                 <Card className="p-4 bg-secondary/30">
-                  <CardTitle className="text-xl font-headline mb-3 flex items-center"><FileIcon className="mr-2 h-5 w-5 text-primary" />Uploaded Files</CardTitle>
+                  <CardTitle className="text-xl font-headline mb-3 flex items-center"><FileIcon className="mr-2 h-5 w-5 text-primary" />Uploaded Files by Caregiver</CardTitle>
                   {patient.uploadedFileNames && patient.uploadedFileNames.length > 0 ? (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                       {patient.uploadedFileNames.map((fileName, index) => {
@@ -358,14 +373,10 @@ export default function DoctorPatientDetailPage() {
                     <p className="text-sm text-foreground">No files uploaded by caregiver.</p>
                   )}
                 </Card>
-                 {patient.feedbackStatus === 'Reviewed by Doctor' && patient.doctorFeedbackNotes && (
-                    <Card className="p-4 border-primary bg-primary/10">
-                        <CardTitle className="text-xl font-headline mb-3 flex items-center"><Microscope className="mr-2 h-5 w-5 text-primary"/>Doctor's Review</CardTitle>
-                        <p className="text-sm font-semibold">Reviewed by: {patient.doctorName || 'N/A'}</p>
-                        {patient.feedbackDateTime?.toDate && <p className="text-xs text-muted-foreground mb-2">Date: {new Date(patient.feedbackDateTime.toDate()).toLocaleString()}</p>}
-                        <p className="text-sm whitespace-pre-wrap">{patient.doctorFeedbackNotes}</p>
-                    </Card>
-                 )}
+
+                 <FeedbackList feedbacks={feedbacks} isLoading={loadingFeedbacks} title="Patient Feedback History" />
+                 <TestRequestList requests={testRequests} isLoading={loadingTestRequests} title="Test Request History" userRole="doctor" />
+                 
               </CardContent>
             </Card>
         </div>
@@ -373,34 +384,42 @@ export default function DoctorPatientDetailPage() {
         <div className="lg:col-span-1 space-y-6">
             <Card className="shadow-xl">
                 <CardHeader>
-                    <CardTitle className="text-xl font-headline flex items-center gap-2"><MessageSquare className="w-5 h-5"/>Provide/Update Feedback</CardTitle>
-                    <CardDescription>Enter your diagnosis, notes, or recommendations.</CardDescription>
+                    <CardTitle className="text-xl font-headline flex items-center gap-2"><MessageSquare className="w-5 h-5"/>Add New Feedback</CardTitle>
+                    <CardDescription>Enter your diagnosis, notes, or recommendations for this patient.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                     <Textarea
-                        value={feedbackText}
-                        onChange={(e) => setFeedbackText(e.target.value)}
+                        value={newFeedbackText}
+                        onChange={(e) => setNewFeedbackText(e.target.value)}
                         placeholder="Enter your detailed feedback here..."
-                        rows={8}
+                        rows={6}
                         className="font-body"
-                        disabled={isSubmittingFeedback || patient.feedbackStatus === 'Reviewed by Doctor' && patient.doctorId !== currentUser?.uid && !!patient.doctorId}
+                        disabled={isSubmittingFeedback}
                     />
-                     {patient.feedbackStatus === 'Reviewed by Doctor' && patient.doctorId !== currentUser?.uid && !!patient.doctorId && (
-                        <p className="text-xs text-orange-600">Feedback already provided by Dr. {patient.doctorName}. You can only edit your own feedback.</p>
-                     )}
-                     {patient.feedbackStatus === 'Reviewed by Doctor' && patient.doctorId === currentUser?.uid && (
-                        <p className="text-xs text-blue-600">You have already provided feedback. You can update it here.</p>
-                     )}
                     <Button
                         onClick={handleFeedbackSubmit}
-                        disabled={isSubmittingFeedback || !feedbackText.trim() || (patient.feedbackStatus === 'Reviewed by Doctor' && patient.doctorId !== currentUser?.uid && !!patient.doctorId) }
+                        disabled={isSubmittingFeedback || !newFeedbackText.trim()}
                         className="w-full bg-accent text-accent-foreground hover:bg-accent/80"
                     >
-                        {isSubmittingFeedback ? 'Submitting...' : (patient.feedbackStatus === 'Reviewed by Doctor' && patient.doctorId === currentUser?.uid ? 'Update Feedback' : 'Submit Feedback')}
+                        {isSubmittingFeedback ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                        {isSubmittingFeedback ? 'Submitting...' : 'Add Feedback'}
                     </Button>
                 </CardContent>
             </Card>
             
+            <Card className="shadow-xl">
+                <CardHeader>
+                    <CardTitle className="text-xl font-headline flex items-center gap-2"><FileScan className="w-5 h-5"/>Test Management</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <TestRequestDialog 
+                        patientId={patient.id} 
+                        patientName={patient.patientName}
+                        onTestRequested={() => { /* Optionally refresh list or give feedback */ }}
+                    />
+                </CardContent>
+            </Card>
+
             <Card className="shadow-xl">
                 <CardHeader>
                     <CardTitle className="text-xl font-headline">Communication</CardTitle>
@@ -427,30 +446,9 @@ export default function DoctorPatientDetailPage() {
                     <p className="text-xs text-muted-foreground text-center">Specialist email is a placeholder.</p>
                 </CardContent>
             </Card>
-
-            <Card className="shadow-xl h-fit">
-              <CardHeader>
-                <CardTitle className="text-xl font-headline">Request Tests (Placeholder)</CardTitle>
-                <CardDescription className="font-body">Select tests to request for {patient.name}. (Functionality to be implemented)</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {testCategories.map(test => (
-                  <Button key={test.name} variant="outline" className="w-full justify-start" disabled>
-                    <test.icon className="mr-2 h-5 w-5 text-primary" />
-                    {test.name}
-                  </Button>
-                ))}
-              </CardContent>
-              <CardFooter>
-                 <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/80" disabled>
-                    Submit Test Requests
-                </Button>
-              </CardFooter>
-            </Card>
         </div>
       </div>
     </div>
   );
 }
 
-    

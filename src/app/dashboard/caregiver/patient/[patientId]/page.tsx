@@ -2,7 +2,7 @@
 // src/app/dashboard/caregiver/patient/[patientId]/page.tsx
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -11,10 +11,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, Timestamp } from 'firebase/firestore';
-import { ArrowLeft, UserCircle, Hospital, CalendarDays, Stethoscope, Microscope, FileText as FileIcon, Edit, AlertTriangle, Info, Fingerprint, UserCheck } from 'lucide-react';
+import { doc, getDoc, Timestamp, collection, query, orderBy, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import { ArrowLeft, UserCircle, Hospital, CalendarDays, Stethoscope, Microscope, FileText as FileIcon, Edit, AlertTriangle, Info, Fingerprint, UserCheck, MessageSquareText, FileScan } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { FeedbackList, type FeedbackItem } from '@/components/dashboard/shared/FeedbackList';
+import { TestRequestList, type TestRequestItem } from '@/components/dashboard/shared/TestRequestList';
+import { useToast } from '@/hooks/use-toast';
 
 interface PatientData {
   id: string;
@@ -30,70 +33,118 @@ interface PatientData {
   previousDiseases?: string;
   currentMedications?: string;
   insuranceDetails?: string;
-  uploadedFileNames?: string[];
+  uploadedFileNames?: string[]; // Caregiver uploaded files
   registrationDateTime: Timestamp;
-  feedbackStatus: string;
+  feedbackStatus: string; // Consider if this top-level status is still primary
   caregiverUid: string;
-  doctorFeedbackNotes?: string; // Added
-  doctorName?: string;          // Added
-  feedbackDateTime?: Timestamp; // Added
+  // Removed direct doctor feedback fields from here, they are in subcollection
 }
 
 export default function CaregiverPatientDetailPage() {
-  const { currentUser } = useAuth();
+  const { currentUser, loading: authLoading } = useAuth();
   const params = useParams();
   const router = useRouter();
+  const { toast } = useToast();
   const patientDocId = params.patientId as string;
 
   const [patient, setPatient] = useState<PatientData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingPatient, setLoadingPatient] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchPatientData() {
-      if (!currentUser || !patientDocId) {
-        setError("User not authenticated or patient ID missing.");
-        setLoading(false);
-        return;
-      }
+  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([]);
+  const [loadingFeedbacks, setLoadingFeedbacks] = useState(true);
+  const [testRequests, setTestRequests] = useState<TestRequestItem[]>([]);
+  const [loadingTestRequests, setLoadingTestRequests] = useState(true);
 
-      setLoading(true);
-      setError(null);
-      try {
-        const patientDocRef = doc(db, "patients", patientDocId);
-        const patientDocSnap = await getDoc(patientDocRef);
-
-        if (patientDocSnap.exists()) {
-          const data = patientDocSnap.data() as Omit<PatientData, 'id'>;
-          if (data.caregiverUid !== currentUser.uid) {
-            setError("You do not have permission to view this patient's details.");
-            setPatient(null);
-          } else {
-            setPatient({ id: patientDocSnap.id, ...data });
-          }
-        } else {
-          setError("Patient not found.");
-          setPatient(null);
-        }
-      } catch (err: any) {
-        console.error("Error fetching patient data:", err);
-        setError("Could not load patient details. Please try again.");
-      } finally {
-        setLoading(false);
-      }
+  const fetchPatientData = useCallback(async () => {
+    if (!currentUser || !patientDocId) {
+      setError("User not authenticated or patient ID missing.");
+      setLoadingPatient(false);
+      return;
     }
 
-    fetchPatientData();
+    setLoadingPatient(true);
+    setError(null);
+    try {
+      const patientDocRef = doc(db, "patients", patientDocId);
+      const patientDocSnap = await getDoc(patientDocRef);
+
+      if (patientDocSnap.exists()) {
+        const data = patientDocSnap.data() as Omit<PatientData, 'id'>;
+        if (data.caregiverUid !== currentUser.uid) {
+          setError("You do not have permission to view this patient's details.");
+          setPatient(null);
+        } else {
+          setPatient({ id: patientDocSnap.id, ...data });
+        }
+      } else {
+        setError("Patient not found.");
+        setPatient(null);
+      }
+    } catch (err: any) {
+      console.error("Error fetching patient data:", err);
+      setError("Could not load patient details. Please try again.");
+    } finally {
+      setLoadingPatient(false);
+    }
   }, [currentUser, patientDocId]);
+  
+  useEffect(() => {
+    if (!authLoading) {
+        fetchPatientData();
+    }
+  }, [authLoading, fetchPatientData]);
+
+
+  useEffect(() => {
+    let unsubscribeFeedbacks: Unsubscribe | undefined;
+    let unsubscribeTestRequests: Unsubscribe | undefined;
+
+    if (patientDocId && currentUser) {
+      // Fetch Feedbacks
+      setLoadingFeedbacks(true);
+      const feedbacksQuery = query(collection(db, "patients", patientDocId, "patientFeedbacks"), orderBy("createdAt", "desc"));
+      unsubscribeFeedbacks = onSnapshot(feedbacksQuery, (snapshot) => {
+        const fetchedFeedbacks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FeedbackItem));
+        setFeedbacks(fetchedFeedbacks);
+        setLoadingFeedbacks(false);
+      }, (error) => {
+        console.error("Error fetching feedbacks:", error);
+        toast({ title: "Error loading feedback history", description: error.message, variant: "destructive" });
+        setLoadingFeedbacks(false);
+      });
+
+      // Fetch Test Requests
+      setLoadingTestRequests(true);
+      const testRequestsQuery = query(collection(db, "patients", patientDocId, "testRequests"), orderBy("requestedAt", "desc"));
+      unsubscribeTestRequests = onSnapshot(testRequestsQuery, (snapshot) => {
+        const fetchedTestRequests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TestRequestItem));
+        setTestRequests(fetchedTestRequests);
+        setLoadingTestRequests(false);
+      }, (error) => {
+        console.error("Error fetching test requests:", error);
+        toast({ title: "Error loading test requests", description: error.message, variant: "destructive" });
+        setLoadingTestRequests(false);
+      });
+    }
+    return () => {
+      if (unsubscribeFeedbacks) unsubscribeFeedbacks();
+      if (unsubscribeTestRequests) unsubscribeTestRequests();
+    };
+  }, [patientDocId, currentUser, toast]);
+
 
   const getStatusBadgeVariant = (status: string) => {
-    if (status === 'Pending Doctor Review') return 'destructive';
-    if (status === 'Reviewed by Doctor') return 'secondary';
-    if (status === 'Specialist Feedback Provided') return 'default';
+    // This status is from the main patient doc, might need re-evaluation
+    // if primary status comes from feedback/test requests now
+    if (status === 'Pending Doctor Review' && feedbacks.length === 0) return 'destructive';
+    if (feedbacks.length > 0) return 'default'; // Indicates some feedback activity
     return 'outline';
   };
+  
+  const overallLoading = loadingPatient || authLoading;
 
-  if (loading) {
+  if (overallLoading) {
     return (
       <div className="container mx-auto py-8 px-4 space-y-6">
         <Skeleton className="h-8 w-48" />
@@ -109,6 +160,8 @@ export default function CaregiverPatientDetailPage() {
                 <Skeleton className="h-5 w-2/3" />
               </div>
             ))}
+             <Skeleton className="md:col-span-2 h-24" /> 
+             <Skeleton className="md:col-span-2 h-24" />
           </CardContent>
           <CardFooter>
             <Skeleton className="h-10 w-32" />
@@ -167,6 +220,8 @@ export default function CaregiverPatientDetailPage() {
     </div>
   );
 
+  const latestFeedback = feedbacks.length > 0 ? feedbacks[0] : null; // Assuming feedbacks are sorted desc by date
+
   return (
     <div className="container mx-auto py-8 px-4">
       <Button variant="outline" className="mb-6" onClick={() => router.back()}>
@@ -183,6 +238,11 @@ export default function CaregiverPatientDetailPage() {
             <CardDescription className="font-body">
               Patient Record ID: {patient.patientId} &bull; Age: {patient.patientAge} &bull; Gender: {patient.patientGender}
             </CardDescription>
+            <div className="mt-2">
+                <Badge variant={getStatusBadgeVariant(patient.feedbackStatus)} className="text-sm px-3 py-1">
+                    {feedbacks.length > 0 ? `${feedbacks.length} Feedback Entr${feedbacks.length === 1 ? 'y' : 'ies'}` : patient.feedbackStatus}
+                </Badge>
+            </div>
           </div>
            <Button variant="outline" size="sm" asChild> 
               <Link href={`/dashboard/caregiver/patient/${patient.id}/edit`}>
@@ -218,35 +278,9 @@ export default function CaregiverPatientDetailPage() {
                     <DetailItem label="Insurance Details" value={patient.insuranceDetails} />
                 </div>
             </Card>
-
-            <Card className="p-4 bg-secondary/30">
-                <CardTitle className="text-xl font-headline mb-3 flex items-center"><Microscope className="mr-2 h-5 w-5 text-primary" />Case Status & Feedback</CardTitle>
-                <div className="space-y-1">
-                    <span className="text-sm font-semibold text-muted-foreground">Overall Status: </span>
-                    <Badge variant={getStatusBadgeVariant(patient.feedbackStatus)} className="text-sm px-3 py-1">
-                        {patient.feedbackStatus}
-                    </Badge>
-                </div>
-                <div className="mt-4 p-3 border rounded-md bg-background shadow-sm">
-                    <h4 className="font-semibold text-foreground mb-1 flex items-center"><UserCheck className="w-4 h-4 mr-2 text-primary" /> Doctor's Feedback:</h4>
-                    {patient.doctorFeedbackNotes ? (
-                        <>
-                            <p className="text-sm text-foreground whitespace-pre-wrap">{patient.doctorFeedbackNotes}</p>
-                            {patient.doctorName && (
-                                <p className="text-xs text-muted-foreground mt-2">
-                                    Provided by: Dr. {patient.doctorName}
-                                    {patient.feedbackDateTime?.toDate && ` on ${new Date(patient.feedbackDateTime.toDate()).toLocaleDateString()}`}
-                                </p>
-                            )}
-                        </>
-                    ) : (
-                        <p className="text-sm text-muted-foreground italic">No feedback provided by a doctor yet.</p>
-                    )}
-                </div>
-            </Card>
             
-            <Card className="p-4 bg-secondary/30">
-              <CardTitle className="text-xl font-headline mb-3 flex items-center"><FileIcon className="mr-2 h-5 w-5 text-primary" />Uploaded Files</CardTitle>
+            <Card className="p-4 bg-secondary/30 md:col-span-2">
+              <CardTitle className="text-xl font-headline mb-3 flex items-center"><FileIcon className="mr-2 h-5 w-5 text-primary" />Uploaded Files by Caregiver</CardTitle>
               {patient.uploadedFileNames && patient.uploadedFileNames.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                   {patient.uploadedFileNames.map((fileName, index) => {
@@ -283,20 +317,28 @@ export default function CaregiverPatientDetailPage() {
                   })}
                 </div>
               ) : (
-                <p className="text-sm text-foreground">No files uploaded.</p>
+                <p className="text-sm text-foreground">No files uploaded by you.</p>
               )}
             </Card>
+             <div className="md:col-span-2">
+                <FeedbackList feedbacks={feedbacks} isLoading={loadingFeedbacks} title="Doctor Feedback History" />
+             </div>
+             <div className="md:col-span-2">
+                <TestRequestList 
+                    requests={testRequests} 
+                    isLoading={loadingTestRequests} 
+                    title="Requested Tests" 
+                    userRole="caregiver" 
+                    onFulfillClick={(requestId) => router.push(`/dashboard/caregiver/test-requests?patientId=${patient.id}&requestId=${requestId}`)}
+                />
+             </div>
           </div>
         </CardContent>
         <CardFooter className="text-xs text-muted-foreground">
           Patient record last formally updated: {patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleDateString() : 'N/A'}
-          {patient.feedbackDateTime?.toDate && patient.feedbackStatus === 'Reviewed by Doctor' && ` (Doctor feedback: ${new Date(patient.feedbackDateTime.toDate()).toLocaleDateString()})`}
+          {latestFeedback?.createdAt?.toDate && ` (Latest doctor feedback: ${new Date(latestFeedback.createdAt.toDate()).toLocaleDateString()})`}
         </CardFooter>
       </Card>
     </div>
   );
 }
-    
-
-    
-

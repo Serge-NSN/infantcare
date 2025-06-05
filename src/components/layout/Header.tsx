@@ -1,8 +1,9 @@
 
+// src/components/layout/Header.tsx
 "use client";
 
 import Link from 'next/link';
-import { Menu, X, Stethoscope, LogOut, LogIn, UserPlus, LayoutDashboard, User, BookOpen, Mail, HelpCircle, UserCog, PlusCircle, ListOrdered } from 'lucide-react';
+import { Menu, X, Stethoscope, LogOut, LogIn, UserPlus, LayoutDashboard, User, BookOpen, Mail, HelpCircle, UserCog, PlusCircle, ListOrdered, FileSearch } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
@@ -20,6 +21,7 @@ import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import type { DocumentData } from "firebase/firestore";
 import { getDashboardLink } from '@/lib/utils/getDashboardLink'; 
+import { NotificationBell } from './NotificationBell'; // Import NotificationBell
 
 const Logo = () => (
   <Link href="/" className="flex items-center gap-2">
@@ -89,7 +91,7 @@ export function Header() {
                 }
             }
           } else {
-             await logout();
+             // await logout(); // Commenting out for now to prevent logout loops on minor errors
           }
         } finally {
           setProfileLoading(false);
@@ -112,9 +114,8 @@ export function Header() {
 
   const dashboardHref = userProfile ? getDashboardLink(userProfile.role) : '/login';
 
-  // Common Nav items visible to unauthenticated users or specific general items
   const unauthenticatedNavItems: NavItem[] = [
-    { href: '/', label: 'Home', icon: LayoutDashboard /* Home icon substitute */, mobileIcon: <LayoutDashboard className="mr-2 h-4 w-4" /> },
+    { href: '/', label: 'Home', icon: LayoutDashboard, mobileIcon: <LayoutDashboard className="mr-2 h-4 w-4" /> },
     { href: '/education', label: 'Education', icon: BookOpen, mobileIcon: <BookOpen className="mr-2 h-4 w-4" /> },
     { href: '/contact', label: 'Contact', icon: Mail, mobileIcon: <Mail className="mr-2 h-4 w-4" /> },
     { href: '/help', label: 'Help', icon: HelpCircle, mobileIcon: <HelpCircle className="mr-2 h-4 w-4" /> },
@@ -127,12 +128,16 @@ export function Header() {
   if (currentUser && userProfile?.role === 'Caregiver') {
     authenticatedBaseNavItems.push(
       { href: '/dashboard/caregiver/add-patient', label: 'Add Patient', icon: PlusCircle, mobileIcon: <PlusCircle className="mr-2 h-4 w-4" /> },
-      { href: '/dashboard/caregiver/view-patients', label: 'View Patients', icon: ListOrdered, mobileIcon: <ListOrdered className="mr-2 h-4 w-4" /> }
+      { href: '/dashboard/caregiver/view-patients', label: 'View Patients', icon: ListOrdered, mobileIcon: <ListOrdered className="mr-2 h-4 w-4" /> },
+      { href: '/dashboard/caregiver/test-requests', label: 'Test Requests', icon: FileSearch, mobileIcon: <FileSearch className="mr-2 h-4 w-4" /> }
+    );
+  } else if (currentUser && userProfile?.role === 'Medical Doctor') {
+     authenticatedBaseNavItems.push(
+      { href: '/dashboard/doctor/awaiting-review', label: 'Awaiting Review', icon: PlusCircle, mobileIcon: <PlusCircle className="mr-2 h-4 w-4" /> },
+      { href: '/dashboard/doctor/view-all-patients', label: 'All Patients', icon: ListOrdered, mobileIcon: <ListOrdered className="mr-2 h-4 w-4" /> }
     );
   }
-  // Add other role-specific links here for 'Medical Doctor' and 'Specialist' if needed
 
-  // Always add Help for authenticated users
   if (currentUser) {
     authenticatedBaseNavItems.push({ href: '/help', label: 'Help', icon: HelpCircle, mobileIcon: <HelpCircle className="mr-2 h-4 w-4" /> });
   }
@@ -181,7 +186,6 @@ export function Header() {
       <div className="container mx-auto flex h-16 max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Logo />
 
-        {/* Desktop Navigation */}
         <nav className="hidden md:flex gap-1 items-center">
           {currentNavItems.map((item) => (
             <Button variant="link" asChild key={item.label} className="text-sm font-medium text-foreground/70 transition-colors hover:text-foreground hover:no-underline px-3 py-2">
@@ -194,40 +198,43 @@ export function Header() {
           {isLoading ? (
             <div className="h-8 w-8 bg-muted rounded-full animate-pulse ml-2"></div>
           ) : currentUser && userProfile ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full ml-2">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={undefined} /> 
-                    <AvatarFallback>{getAvatarFallback(userProfile.fullName, currentUser.email)}</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none truncate">
-                      {userProfile.fullName || currentUser.email?.split('@')[0]}
-                    </p>
-                    <p className="text-xs leading-none text-muted-foreground truncate">
-                      {currentUser.email}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href={dashboardHref}> <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/profile"> <UserCog className="mr-2 h-4 w-4" /> Modify Profile </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Log out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <>
+              <NotificationBell /> 
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full ml-1">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={undefined} /> 
+                      <AvatarFallback>{getAvatarFallback(userProfile.fullName, currentUser.email)}</AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none truncate">
+                        {userProfile.fullName || currentUser.email?.split('@')[0]}
+                      </p>
+                      <p className="text-xs leading-none text-muted-foreground truncate">
+                        {currentUser.email}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href={dashboardHref}> <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile"> <UserCog className="mr-2 h-4 w-4" /> Modify Profile </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Log out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
           ) : (
             <>
               <Button variant="ghost" asChild className="ml-2">
@@ -241,47 +248,50 @@ export function Header() {
         </nav>
 
         {/* Mobile Navigation */}
-        <div className="md:hidden">
+        <div className="md:hidden flex items-center gap-2">
           {isLoading ? (
              <div className="h-8 w-8 bg-muted rounded-full animate-pulse"></div>
           ) : currentUser && userProfile ? (
-             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                     <AvatarImage src={undefined} />
-                    <AvatarFallback>{getAvatarFallback(userProfile.fullName, currentUser.email)}</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                 <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none truncate">
-                      {userProfile.fullName || currentUser.email?.split('@')[0]}
-                    </p>
-                    <p className="text-xs leading-none text-muted-foreground truncate">
-                      {currentUser.email}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {currentNavItems.map((item) => (
-                  <DropdownMenuItem key={item.label} asChild>
-                    <Link href={item.href} onClick={() => setIsMobileMenuOpen(false)}>
-                       {item.mobileIcon} {item.label}
-                    </Link>
+            <>
+              <NotificationBell />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                    <Avatar className="h-8 w-8">
+                       <AvatarImage src={undefined} />
+                      <AvatarFallback>{getAvatarFallback(userProfile.fullName, currentUser.email)}</AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                   <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none truncate">
+                        {userProfile.fullName || currentUser.email?.split('@')[0]}
+                      </p>
+                      <p className="text-xs leading-none text-muted-foreground truncate">
+                        {currentUser.email}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {currentNavItems.map((item) => (
+                    <DropdownMenuItem key={item.label} asChild>
+                      <Link href={item.href} onClick={() => setIsMobileMenuOpen(false)}>
+                         {item.mobileIcon} {item.label}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                   <DropdownMenuItem asChild>
+                    <Link href="/profile" onClick={() => setIsMobileMenuOpen(false)}> <UserCog className="mr-2 h-4 w-4" /> Modify Profile </Link>
                   </DropdownMenuItem>
-                ))}
-                 <DropdownMenuItem asChild>
-                  <Link href="/profile" onClick={() => setIsMobileMenuOpen(false)}> <UserCog className="mr-2 h-4 w-4" /> Modify Profile </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-                  <LogOut className="mr-2 h-4 w-4" /> Log out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                    <LogOut className="mr-2 h-4 w-4" /> Log out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
           ) : (
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
