@@ -65,6 +65,7 @@ export interface PatientDataForForm {
   currentMedications?: string;
   insuranceDetails?: string;
   uploadedFileNames?: string[]; // Existing files
+  caregiverName?: string; // Optional: if we decide to display/use it in the form
 }
 
 interface PatientRegistrationFormProps {
@@ -132,7 +133,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
     }
 
     if (isEditMode && patientToEdit) {
-      const updatedPatientData: Omit<Partial<PatientDataForForm>, 'id' | 'hospitalId'> & { updatedAt: Timestamp; uploadedFileNames: string[] } = {
+      const updatedPatientData: Omit<Partial<PatientDataForForm>, 'id' | 'hospitalId' | 'caregiverName'> & { updatedAt: Timestamp; uploadedFileNames: string[] } = {
         ...data,
         uploadedFileNames: [...(patientToEdit.uploadedFileNames || []), ...newFileNames],
         updatedAt: serverTimestamp() as Timestamp,
@@ -141,7 +142,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
 
       try {
         const patientDocRef = doc(db, "patients", patientToEdit.id);
-        // hospitalId is not updated as it's system-generated and set at creation
+        // hospitalId and caregiverName are not updated here as they're system-generated or set at creation
         await updateDoc(patientDocRef, updatedPatientData);
         toast({
           title: "Patient Updated Successfully",
@@ -162,12 +163,15 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
       const hospitalNamePrefix = data.hospitalName.substring(0, 3).toUpperCase();
       const randomDigits = Math.floor(1000 + Math.random() * 9000);
       const generatedHospitalId = `${hospitalNamePrefix}-${randomDigits}`;
+      
+      const caregiverName = currentUser.displayName || (typeof window !== 'undefined' ? localStorage.getItem('userFullName') : null) || currentUser.email?.split('@')[0] || 'Caregiver';
 
       const patientDataForCreate = {
         ...data,
         patientId: generatedPatientId,
-        hospitalId: generatedHospitalId, // Add system-generated hospital ID
+        hospitalId: generatedHospitalId, 
         caregiverUid: currentUser.uid,
+        caregiverName: caregiverName, // Store caregiver's name
         registrationDateTime: serverTimestamp(),
         feedbackStatus: 'Pending Doctor Review',
         createdAt: serverTimestamp(),
@@ -182,7 +186,6 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
           description: `${data.patientName} (ID: ${generatedPatientId}) has been registered. Hospital ID: ${generatedHospitalId}`,
         });
         form.reset(defaultValues);
-        // Redirect to the detail page of the newly created patient or back to add-patient
         router.push(`/dashboard/caregiver/patient/${newPatientRef.id}`);
       } catch (error: any) {
         console.error("Error registering patient:", error);
