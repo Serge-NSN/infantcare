@@ -19,7 +19,13 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'images.unsplash.com', // This line allows images from Unsplash
+        hostname: 'images.unsplash.com', 
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'firebasestorage.googleapis.com', // Added Firebase Storage
         port: '',
         pathname: '/**',
       },

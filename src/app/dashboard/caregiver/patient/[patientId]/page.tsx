@@ -33,11 +33,11 @@ interface PatientData {
   previousDiseases?: string;
   currentMedications?: string;
   insuranceDetails?: string;
-  uploadedFileNames?: string[]; // Caregiver uploaded files
+  uploadedFileNames?: string[]; // Caregiver uploaded files (assumed to be URLs now)
   registrationDateTime: Timestamp;
-  feedbackStatus: string; // Consider if this top-level status is still primary
+  feedbackStatus: string; 
   caregiverUid: string;
-  // Removed direct doctor feedback fields from here, they are in subcollection
+  caregiverName?: string;
 }
 
 export default function CaregiverPatientDetailPage() {
@@ -135,10 +135,8 @@ export default function CaregiverPatientDetailPage() {
 
 
   const getStatusBadgeVariant = (status: string) => {
-    // This status is from the main patient doc, might need re-evaluation
-    // if primary status comes from feedback/test requests now
     if (status === 'Pending Doctor Review' && feedbacks.length === 0) return 'destructive';
-    if (feedbacks.length > 0) return 'default'; // Indicates some feedback activity
+    if (feedbacks.length > 0) return 'default'; 
     return 'outline';
   };
   
@@ -220,7 +218,7 @@ export default function CaregiverPatientDetailPage() {
     </div>
   );
 
-  const latestFeedback = feedbacks.length > 0 ? feedbacks[0] : null; // Assuming feedbacks are sorted desc by date
+  const latestFeedback = feedbacks.length > 0 ? feedbacks[0] : null; 
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -261,6 +259,7 @@ export default function CaregiverPatientDetailPage() {
                 value={patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleString() : 'N/A'} 
                 icon={CalendarDays}
               />
+              <DetailItem label="Registered By" value={patient.caregiverName} icon={UserCheck} />
             </Card>
 
             <Card className="p-4 bg-secondary/30">
@@ -283,19 +282,28 @@ export default function CaregiverPatientDetailPage() {
               <CardTitle className="text-xl font-headline mb-3 flex items-center"><FileIcon className="mr-2 h-5 w-5 text-primary" />Uploaded Files by Caregiver</CardTitle>
               {patient.uploadedFileNames && patient.uploadedFileNames.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {patient.uploadedFileNames.map((fileName, index) => {
-                    const isImageFile = typeof fileName === 'string' && /\.(jpe?g|png|gif|webp)$/i.test(fileName);
-                    
+                  {patient.uploadedFileNames.map((fileSrc, index) => {
+                    // Assuming fileSrc is now a URL. Basic check for image extension for display purposes.
+                    // A more robust check or storing file type in Firestore would be better.
+                    const isImageFile = typeof fileSrc === 'string' && /\.(jpe?g|png|gif|webp)$/i.test(fileSrc);
+                    const fileNameFromUrl = typeof fileSrc === 'string' ? fileSrc.substring(fileSrc.lastIndexOf('/') + 1).split('?')[0] : 'File';
+
+
                     return (
                       <div key={index} className="flex flex-col items-center text-center p-2 border rounded-md bg-background shadow-sm">
                         {isImageFile ? (
                           <Image
-                            src={`https://placehold.co/150x150.png`} 
-                            alt={fileName || 'Uploaded image'}
+                            src={fileSrc} // Use the fileSrc (assumed URL) directly
+                            alt={fileNameFromUrl || 'Uploaded image'}
                             width={150}
                             height={150}
                             className="rounded-md object-cover mb-1"
                             data-ai-hint="medical scan" 
+                            onError={(e) => {
+                              // Fallback if the image fails to load (e.g., URL is bad)
+                              (e.target as HTMLImageElement).src = 'https://placehold.co/150x150.png?text=Error';
+                              (e.target as HTMLImageElement).alt = 'Error loading image';
+                            }}
                           />
                         ) : (
                           <div className="w-[150px] h-[150px] bg-muted rounded-md flex items-center justify-center mb-1">
@@ -305,10 +313,10 @@ export default function CaregiverPatientDetailPage() {
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <p className="text-xs text-foreground truncate w-full max-w-[140px]">{fileName || 'Unnamed file'}</p>
+                              <p className="text-xs text-foreground truncate w-full max-w-[140px]">{fileNameFromUrl || 'Unnamed file'}</p>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>{fileName || 'Unnamed file'}</p>
+                              <p>{fileNameFromUrl || 'Unnamed file'}</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>

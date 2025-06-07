@@ -6,7 +6,7 @@ import * as React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowLeft, UserCircle, Stethoscope, FlaskConical, FileScan, Activity, MailIcon, Info, CalendarDays, FileText as FileIcon, MessageSquare, AlertTriangle, Fingerprint, Send, Microscope, Hospital, PlusCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, UserCircle, Stethoscope, FlaskConical, FileScan, Activity, MailIcon, Info, CalendarDays, FileText as FileIcon, MessageSquare, AlertTriangle, Fingerprint, Send, Microscope, Hospital, PlusCircle, Loader2, UserCheck } from "lucide-react";
 import Image from "next/image";
 import { EmailButton } from '@/components/shared/EmailButton';
 import { useParams, useRouter } from 'next/navigation';
@@ -26,7 +26,7 @@ import { TestRequestList, type TestRequestItem } from '@/components/dashboard/sh
 interface PatientData {
   id: string;
   patientName: string;
-  patientId: string; // System-generated patient record ID
+  patientId: string; 
   hospitalId: string;
   patientAge: string;
   patientGender: string;
@@ -37,11 +37,11 @@ interface PatientData {
   previousDiseases?: string;
   currentMedications?: string;
   insuranceDetails?: string;
-  uploadedFileNames?: string[];
+  uploadedFileNames?: string[]; // Assumed to be URLs now
   registrationDateTime: Timestamp;
-  feedbackStatus: string; // Overall status, might be deprecated or re-purposed
+  feedbackStatus: string; 
   caregiverUid: string;
-  // Fields from main doc for doctor feedback are removed, use patientFeedbacks subcollection
+  caregiverName?: string;
 }
 
 interface CaregiverProfile {
@@ -83,8 +83,6 @@ export default function DoctorPatientDetailPage() {
 
       if (patientDocSnap.exists()) {
         const data = patientDocSnap.data() as Omit<PatientData, 'id'>;
-        // Doctors should be able to read any patient record as per current rules.
-        // No specific permission check against caregiverUid needed here for doctors.
         setPatient({ id: patientDocSnap.id, ...data });
 
         if (data.caregiverUid) {
@@ -125,7 +123,6 @@ export default function DoctorPatientDetailPage() {
     let unsubscribeTestRequests: Unsubscribe | undefined;
 
     if (patientDocId && currentUser) {
-      // Fetch Feedbacks
       setLoadingFeedbacks(true);
       const feedbacksQuery = query(collection(db, "patients", patientDocId, "patientFeedbacks"), orderBy("createdAt", "desc"));
       unsubscribeFeedbacks = onSnapshot(feedbacksQuery, (snapshot) => {
@@ -138,7 +135,6 @@ export default function DoctorPatientDetailPage() {
         setLoadingFeedbacks(false);
       });
 
-      // Fetch Test Requests
       setLoadingTestRequests(true);
       const testRequestsQuery = query(collection(db, "patients", patientDocId, "testRequests"), orderBy("requestedAt", "desc"));
       unsubscribeTestRequests = onSnapshot(testRequestsQuery, (snapshot) => {
@@ -177,12 +173,16 @@ export default function DoctorPatientDetailPage() {
       const feedbacksCollectionRef = collection(db, "patients", patient.id, "patientFeedbacks");
       await addDoc(feedbacksCollectionRef, feedbackData);
 
-      toast({ title: "Feedback Added", description: "Your feedback has been recorded." });
-      setNewFeedbackText(''); // Clear textarea
-      // No need to update patient state directly, onSnapshot will handle it.
-      // Potentially update the main patient doc's feedbackStatus if needed for global view, or lastFeedbackAt
-      // await updateDoc(doc(db, "patients", patient.id), { feedbackStatus: 'Reviewed by Doctor', lastFeedbackAt: serverTimestamp() });
+      // Update the main patient document's feedbackStatus
+      const patientDocRef = doc(db, "patients", patient.id);
+      await updateDoc(patientDocRef, { 
+        feedbackStatus: 'Reviewed by Doctor', 
+        lastFeedbackAt: serverTimestamp() // Optional: track last feedback time on main doc
+      });
 
+
+      toast({ title: "Feedback Added", description: "Your feedback has been recorded." });
+      setNewFeedbackText(''); 
     } catch (err: any) {
       console.error("Error submitting feedback (raw):", err);
       let description = "Could not submit feedback. Please try again.";
@@ -196,8 +196,9 @@ export default function DoctorPatientDetailPage() {
   };
   
   const getStatusBadgeVariant = (status: string) => {
-    if (status === 'Pending Doctor Review') return 'destructive';
-    if (status === 'Reviewed by Doctor' || feedbacks.length > 0) return 'secondary'; // Update based on new feedback logic
+    const hasFeedback = feedbacks.length > 0;
+    if (status === 'Pending Doctor Review' && !hasFeedback) return 'destructive';
+    if (hasFeedback || status === 'Reviewed by Doctor') return 'secondary'; 
     return 'outline';
   };
 
@@ -301,7 +302,7 @@ export default function DoctorPatientDetailPage() {
                         </CardDescription>
                         <div className="mt-2">
                             <Badge variant={getStatusBadgeVariant(patient.feedbackStatus)} className="text-sm px-3 py-1">
-                                {feedbacks.length > 0 ? `${feedbacks.length} Feedback entries` : patient.feedbackStatus}
+                                {feedbacks.length > 0 ? `${feedbacks.length} Feedback entr${feedbacks.length === 1 ? 'y' : 'ies'}` : patient.feedbackStatus}
                             </Badge>
                         </div>
                     </div>
@@ -318,6 +319,7 @@ export default function DoctorPatientDetailPage() {
                             value={patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleString() : 'N/A'}
                             icon={CalendarDays}
                         />
+                        <DetailItem label="Registered By (Caregiver)" value={patient.caregiverName} icon={UserCheck} />
                     </Card>
                      <Card className="p-4 bg-secondary/30">
                         <CardTitle className="text-xl font-headline mb-3 flex items-center"><Info className="mr-2 h-5 w-5 text-primary" />Patient Demographics</CardTitle>
@@ -339,18 +341,24 @@ export default function DoctorPatientDetailPage() {
                   <CardTitle className="text-xl font-headline mb-3 flex items-center"><FileIcon className="mr-2 h-5 w-5 text-primary" />Uploaded Files by Caregiver</CardTitle>
                   {patient.uploadedFileNames && patient.uploadedFileNames.length > 0 ? (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                      {patient.uploadedFileNames.map((fileName, index) => {
-                        const isImageFile = typeof fileName === 'string' && /\.(jpe?g|png|gif|webp)$/i.test(fileName);
+                      {patient.uploadedFileNames.map((fileSrc, index) => {
+                        const isImageFile = typeof fileSrc === 'string' && /\.(jpe?g|png|gif|webp)$/i.test(fileSrc);
+                        const fileNameFromUrl = typeof fileSrc === 'string' ? fileSrc.substring(fileSrc.lastIndexOf('/') + 1).split('?')[0] : 'File';
+
                         return (
                           <div key={index} className="flex flex-col items-center text-center p-2 border rounded-md bg-background shadow-sm">
-                            {isImageFile ? (
+                            {isImageFile && fileSrc ? ( // Ensure fileSrc is not empty
                               <Image
-                                src={`https://placehold.co/150x150.png`}
-                                alt={fileName || 'Uploaded image'}
+                                src={fileSrc} // Use the fileSrc (assumed URL) directly
+                                alt={fileNameFromUrl || 'Uploaded image'}
                                 width={150}
                                 height={150}
                                 className="rounded-md object-cover mb-1"
                                 data-ai-hint="medical scan"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = 'https://placehold.co/150x150.png?text=Error';
+                                  (e.target as HTMLImageElement).alt = 'Error loading image';
+                                }}
                               />
                             ) : (
                               <div className="w-[150px] h-[150px] bg-muted rounded-md flex items-center justify-center mb-1">
@@ -360,9 +368,9 @@ export default function DoctorPatientDetailPage() {
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <p className="text-xs text-foreground truncate w-full max-w-[140px]">{fileName || 'Unnamed file'}</p>
+                                  <p className="text-xs text-foreground truncate w-full max-w-[140px]">{fileNameFromUrl || 'Unnamed file'}</p>
                                 </TooltipTrigger>
-                                <TooltipContent><p>{fileName || 'Unnamed file'}</p></TooltipContent>
+                                <TooltipContent><p>{fileNameFromUrl || 'Unnamed file'}</p></TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
                           </div>
@@ -436,7 +444,7 @@ export default function DoctorPatientDetailPage() {
                         title={!caregiverProfile?.email ? "Caregiver email not available" : ""}
                     />
                     <EmailButton
-                        receiverEmail="specialist-consult@infantcare.example.com"
+                        receiverEmail="specialist-consult@infantcare.example.com" // Placeholder
                         subject={`Specialist Consultation Request for Patient: ${patient.patientName} (ID: ${patient.patientId})`}
                         body={`Dear Specialist,\n\nI would like to request your consultation for patient ${patient.patientName} (ID: ${patient.patientId}).\n\nCase details: ...\n\nThank you,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
                         buttonText="Contact Specialist"
@@ -451,4 +459,3 @@ export default function DoctorPatientDetailPage() {
     </div>
   );
 }
-
