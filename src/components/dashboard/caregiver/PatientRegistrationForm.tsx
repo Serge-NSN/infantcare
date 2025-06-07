@@ -35,7 +35,6 @@ import { useRouter } from "next/navigation";
 // Schema for form validation (values directly edited by user)
 const patientRegistrationSchema = z.object({
   hospitalName: z.string().min(2, "Hospital name is required."),
-  // hospitalId is now system-generated
   patientName: z.string().min(2, "Patient name is required."),
   patientAge: z.string().min(1, "Patient age is required (e.g., 3 months, 1 year)."),
   patientGender: z.enum(["Male", "Female", "Other"], { required_error: "Gender is required." }),
@@ -45,16 +44,15 @@ const patientRegistrationSchema = z.object({
   previousDiseases: z.string().optional().default(""),
   currentMedications: z.string().optional().default(""),
   insuranceDetails: z.string().optional().default(""),
-  patientFiles: z.custom<FileList>().optional(), // For new file uploads
+  patientFiles: z.custom<FileList>().optional(), 
 });
 
 type PatientRegistrationFormValues = z.infer<typeof patientRegistrationSchema>;
 
-// Type for the data passed to the form when in edit mode
 export interface PatientDataForForm {
-  id: string; // Firestore document ID
+  id: string; 
   hospitalName: string;
-  hospitalId: string; // System-generated, displayed but not edited in form
+  hospitalId: string; 
   patientName: string;
   patientAge: string;
   patientGender: "Male" | "Female" | "Other";
@@ -64,8 +62,8 @@ export interface PatientDataForForm {
   previousDiseases?: string;
   currentMedications?: string;
   insuranceDetails?: string;
-  uploadedFileNames?: string[]; // Existing files
-  caregiverName?: string; // Optional: if we decide to display/use it in the form
+  uploadedFileNames?: string[]; // Will now store Data URIs
+  caregiverName?: string; 
 }
 
 interface PatientRegistrationFormProps {
@@ -74,7 +72,6 @@ interface PatientRegistrationFormProps {
 
 const defaultValues: Partial<PatientRegistrationFormValues> = {
   hospitalName: "",
-  // hospitalId removed
   patientName: "",
   patientAge: "",
   patientAddress: "",
@@ -84,6 +81,29 @@ const defaultValues: Partial<PatientRegistrationFormValues> = {
   currentMedications: "",
   insuranceDetails: "",
 };
+
+// Helper to read file as Data URI
+const readFileAsDataURI = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      reject(new Error(`File "${file.name}" is not an image.`));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        resolve(event.target.result as string);
+      } else {
+        reject(new Error(`Failed to read file "${file.name}".`));
+      }
+    };
+    reader.onerror = (error) => {
+      reject(new Error(`Error reading file "${file.name}": ${error}`));
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
 
 export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFormProps) {
   const { toast } = useToast();
@@ -100,7 +120,6 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
     if (isEditMode && patientToEdit) {
       const formData: Partial<PatientRegistrationFormValues> = {
         hospitalName: patientToEdit.hospitalName,
-        // hospitalId is not part of the form values to be edited
         patientName: patientToEdit.patientName,
         patientAge: patientToEdit.patientAge,
         patientGender: patientToEdit.patientGender,
@@ -125,24 +144,36 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
       return;
     }
 
-    const newFileNames: string[] = [];
+    form.formState.isSubmitting = true; // Manually set submitting state
+
+    const newFileDataURIs: string[] = [];
     if (data.patientFiles && data.patientFiles.length > 0) {
       for (let i = 0; i < data.patientFiles.length; i++) {
-        newFileNames.push(data.patientFiles[i].name);
+        const file = data.patientFiles[i];
+        try {
+          const dataUri = await readFileAsDataURI(file);
+          newFileDataURIs.push(dataUri);
+        } catch (fileReadError: any) {
+            console.error("Error reading file to Data URI:", fileReadError);
+            toast({
+                title: "File Processing Error",
+                description: fileReadError.message || `Could not process file "${file.name}". It will be skipped.`,
+                variant: "destructive",
+            });
+        }
       }
     }
 
     if (isEditMode && patientToEdit) {
       const updatedPatientData: Omit<Partial<PatientDataForForm>, 'id' | 'hospitalId' | 'caregiverName'> & { updatedAt: Timestamp; uploadedFileNames: string[] } = {
         ...data,
-        uploadedFileNames: [...(patientToEdit.uploadedFileNames || []), ...newFileNames],
+        uploadedFileNames: [...(patientToEdit.uploadedFileNames || []), ...newFileDataURIs],
         updatedAt: serverTimestamp() as Timestamp,
       };
       delete (updatedPatientData as any).patientFiles;
 
       try {
         const patientDocRef = doc(db, "patients", patientToEdit.id);
-        // hospitalId and caregiverName are not updated here as they're system-generated or set at creation
         await updateDoc(patientDocRef, updatedPatientData);
         toast({
           title: "Patient Updated Successfully",
@@ -171,11 +202,11 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
         patientId: generatedPatientId,
         hospitalId: generatedHospitalId, 
         caregiverUid: currentUser.uid,
-        caregiverName: caregiverName, // Store caregiver's name
+        caregiverName: caregiverName, 
         registrationDateTime: serverTimestamp(),
         feedbackStatus: 'Pending Doctor Review',
         createdAt: serverTimestamp(),
-        uploadedFileNames: newFileNames,
+        uploadedFileNames: newFileDataURIs, // Store Data URIs
       };
       delete (patientDataForCreate as any).patientFiles;
 
@@ -196,6 +227,8 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
            errorMessage = "Failed to register patient due to an invalid data field.";
         } else if (error.code === "unavailable" || error.message?.includes("client is offline")) {
           errorMessage = "Failed to register patient: Database offline. Check connection.";
+        } else if (error.message?.includes("exceeds the maximum allowed size")) {
+            errorMessage = "Failed to register patient: One or more image files are too large. Please use smaller images.";
         }
         toast({
           title: "Registration Failed",
@@ -204,6 +237,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
         });
       }
     }
+    form.formState.isSubmitting = false; // Reset submitting state
   }
 
   return (
@@ -370,11 +404,11 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
                 {patientToEdit.uploadedFileNames.map((fileName, index) => (
                   <li key={index} className="flex items-center">
                     <FileText className="h-4 w-4 mr-2 shrink-0" />
-                    {fileName}
+                    {fileName.startsWith('data:image/') ? `Embedded Image ${index + 1}` : fileName}
                   </li>
                 ))}
               </ul>
-              <p className="text-xs text-muted-foreground">Upload new image files below to add them to the existing list. Deleting files is not supported in this form.</p>
+              <p className="text-xs text-muted-foreground">Upload new image files below to add them. Images are stored as data URIs. Deleting files is not supported in this form.</p>
             </div>
           )}
 
@@ -394,7 +428,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
                   />
                 </FormControl>
                 <FormMessage />
-                <p className="text-xs text-muted-foreground">Only image files (.jpg, .png, .gif, .webp) are accepted. You can select multiple files.</p>
+                <p className="text-xs text-muted-foreground">Only image files (.jpg, .png, .gif, .webp) are accepted. You can select multiple files. Images will be stored as Data URIs. Large files may cause errors.</p>
               </FormItem>
             )}
           />
@@ -406,3 +440,4 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
     </Form>
   );
 }
+

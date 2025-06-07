@@ -17,12 +17,33 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 
-// Define a new interface for what a caregiver sees, which includes patientName
 interface CaregiverTestRequestItem extends TestRequestItem {
   patientName?: string;
 }
 
-// Modal/Dialog component for fulfilling a request
+// Helper to read file as Data URI
+const readFileAsDataURI = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      reject(new Error(`File "${file.name}" is not an image.`));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        resolve(event.target.result as string);
+      } else {
+        reject(new Error(`Failed to read file "${file.name}".`));
+      }
+    };
+    reader.onerror = (error) => {
+      reject(new Error(`Error reading file "${file.name}": ${error}`));
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
+
 interface FulfillRequestDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -40,7 +61,7 @@ function FulfillRequestDialog({ isOpen, onOpenChange, request, onSubmit }: Fulfi
     setIsSubmitting(true);
     await onSubmit(request.id, notes, files);
     setIsSubmitting(false);
-    onOpenChange(false); // Close dialog on submit
+    onOpenChange(false); 
     setNotes('');
     setFiles(null);
   };
@@ -52,7 +73,7 @@ function FulfillRequestDialog({ isOpen, onOpenChange, request, onSubmit }: Fulfi
       <Card className="bg-card p-0 rounded-lg shadow-xl w-full max-w-lg m-4">
         <CardHeader>
           <CardTitle>Fulfill Test Request: {request.testName}</CardTitle>
-          <CardDescription>For patient: {request.patientName || 'N/A'}. Upload results and add notes.</CardDescription>
+          <CardDescription>For patient: {request.patientName || 'N/A'}. Upload results (images preferred, stored as Data URIs) and add notes.</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
@@ -61,9 +82,9 @@ function FulfillRequestDialog({ isOpen, onOpenChange, request, onSubmit }: Fulfi
               <Textarea id="resultNotes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Add any notes regarding the test results..." />
             </div>
             <div>
-              <label htmlFor="resultFiles" className="block text-sm font-medium mb-1">Upload Result Files (Images Preferred)</label>
-              <Input id="resultFiles" type="file" multiple onChange={(e) => setFiles(e.target.files)} accept="image/*,.pdf,.doc,.docx" />
-              <p className="text-xs text-muted-foreground mt-1">You can upload multiple files.</p>
+              <label htmlFor="resultFiles" className="block text-sm font-medium mb-1">Upload Result Files (Images Only)</label>
+              <Input id="resultFiles" type="file" multiple onChange={(e) => setFiles(e.target.files)} accept="image/*" />
+              <p className="text-xs text-muted-foreground mt-1">You can upload multiple image files. Large files may cause errors.</p>
             </div>
           </CardContent>
           <CardFooter className="flex justify-end gap-2">
@@ -93,7 +114,6 @@ export default function CaregiverTestRequestsPage() {
   const [isFulfillDialogOpen, setIsFulfillDialogOpen] = useState(false);
 
   useEffect(() => {
-    // Prefill dialog if query params are present
     const patientIdParam = searchParams.get('patientId');
     const requestIdParam = searchParams.get('requestId');
     if (patientIdParam && requestIdParam && testRequests.length > 0) {
@@ -108,7 +128,6 @@ export default function CaregiverTestRequestsPage() {
 
   useEffect(() => {
     let unsubscribe: Unsubscribe | undefined;
-    // Keep track of individual listeners for cleanup
     const patientTestRequestListeners: Unsubscribe[] = [];
 
     if (currentUser && !authLoading) {
@@ -116,9 +135,8 @@ export default function CaregiverTestRequestsPage() {
       const patientsQuery = query(collection(db, 'patients'), where('caregiverUid', '==', currentUser.uid));
       
       unsubscribe = onSnapshot(patientsQuery, async (patientsSnapshot) => {
-        // Clean up previous listeners for test requests to avoid duplicates
         patientTestRequestListeners.forEach(listener => listener());
-        patientTestRequestListeners.length = 0; // Clear the array
+        patientTestRequestListeners.length = 0; 
 
         const managedPatientIds = patientsSnapshot.docs.map(doc => doc.id);
         const patientNamesMap = new Map(patientsSnapshot.docs.map(doc => [doc.id, doc.data().patientName]));
@@ -130,8 +148,7 @@ export default function CaregiverTestRequestsPage() {
         }
 
         let combinedRequests: CaregiverTestRequestItem[] = [];
-        // let loadedPatientsCount = 0; // This logic was a bit complex for determining overall loading
-
+        
         managedPatientIds.forEach(patientId => {
           const testRequestsQuery = query(
             collection(db, 'patients', patientId, 'testRequests'),
@@ -145,10 +162,9 @@ export default function CaregiverTestRequestsPage() {
               ...doc.data()
             } as CaregiverTestRequestItem));
             
-            // Update the combined list
             combinedRequests = combinedRequests.filter(req => req.patientId !== patientId).concat(requestsForPatient);
             combinedRequests.sort((a, b) => (b.requestedAt?.toMillis() || 0) - (a.requestedAt?.toMillis() || 0));
-            setTestRequests([...combinedRequests]); // Create new array to trigger re-render
+            setTestRequests([...combinedRequests]); 
 
           }, (err) => {
             console.error(`Error fetching test requests for patient ${patientId}:`, err);
@@ -156,9 +172,7 @@ export default function CaregiverTestRequestsPage() {
           });
           patientTestRequestListeners.push(listener);
         });
-        // This simplified loading might not be perfect for many patients, but should work for moderate numbers.
         setLoading(false);
-
 
       }, (err) => {
         console.error("Error fetching caregiver's patients:", err);
@@ -192,14 +206,22 @@ export default function CaregiverTestRequestsPage() {
   const handleFulfillSubmit = async (requestId: string, notes: string, files: FileList | null) => {
     if (!selectedRequestToFulfill) return;
 
-    const resultFileNames: string[] = [];
-    if (files) {
-        for (let i = 0; i < files.length; i++) {
-            // In a real app, upload files to Firebase Storage here and get URLs
-            // For now, just storing names as an example.
-            // This should eventually use Firebase Storage for actual uploads.
-            resultFileNames.push(files[i].name);
+    const resultDataURIs: string[] = [];
+    if (files && files.length > 0) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        try {
+          const dataUri = await readFileAsDataURI(file); // Use helper
+          resultDataURIs.push(dataUri);
+        } catch (fileReadError: any) {
+            console.error("Error reading file to Data URI for test results:", fileReadError);
+            toast({
+                title: "File Processing Error",
+                description: fileReadError.message || `Could not process file "${file.name}" for test results. It will be skipped.`,
+                variant: "destructive",
+            });
         }
+      }
     }
 
     try {
@@ -207,28 +229,32 @@ export default function CaregiverTestRequestsPage() {
       await updateDoc(testRequestDocRef, {
         status: 'Fulfilled',
         resultNotes: notes,
-        resultFileNames: resultFileNames, // Array of file names (or URLs after storage integration)
+        resultFileNames: resultDataURIs, // Store Data URIs
         fulfilledAt: serverTimestamp(),
       });
       toast({ title: 'Test Results Submitted', description: 'The doctor will be notified.' });
       
-      // Add new files to the main patient document's uploadedFileNames array
-      // This ensures the doctor can see these files on the main patient page too.
-      if (resultFileNames.length > 0) {
+      if (resultDataURIs.length > 0) {
         const patientDocRef = doc(db, "patients", selectedRequestToFulfill.patientId);
         const patientDocSnap = await firebaseGetDoc(patientDocRef);
         if (patientDocSnap.exists()) {
           const existingFiles = patientDocSnap.data().uploadedFileNames || [];
+          // Ensure uploadedFileNames contains only strings (Data URIs)
+          const validExistingFiles = existingFiles.filter((f: any) => typeof f === 'string');
           await updateDoc(patientDocRef, {
-              uploadedFileNames: [...existingFiles, ...resultFileNames]
+              uploadedFileNames: [...validExistingFiles, ...resultDataURIs]
           });
         }
       }
       handleCloseFulfillDialog();
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fulfilling test request:', error);
-      toast({ title: 'Submission Failed', description: 'Could not submit test results.', variant: 'destructive' });
+      let errorMessage = 'Could not submit test results.';
+      if (error.message?.includes("exceeds the maximum allowed size")) {
+        errorMessage = "Could not submit test results: One or more image files are too large. Please use smaller images.";
+      }
+      toast({ title: 'Submission Failed', description: errorMessage, variant: 'destructive' });
     }
   };
 
@@ -281,7 +307,7 @@ export default function CaregiverTestRequestsPage() {
       
       <TestRequestList 
         requests={testRequests} 
-        isLoading={loading && testRequests.length === 0} // Show loading only if list is empty during initial load
+        isLoading={loading && testRequests.length === 0} 
         userRole="caregiver"
         onFulfillClick={(requestId) => {
             const req = testRequests.find(r => r.id === requestId);
@@ -300,9 +326,5 @@ export default function CaregiverTestRequestsPage() {
     </div>
   );
 }
-
-// Note: `firebaseGetDoc` was re-declared locally. If used elsewhere, consider a shared util.
-// Removed the local re-declaration to rely on the direct import of `getDoc as firebaseGetDoc`
-// from 'firebase/firestore' at the top.
 
     
