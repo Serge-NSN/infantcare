@@ -6,7 +6,7 @@ import * as React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowLeft, UserCircle, Stethoscope, FlaskConical, FileScan, Activity, MailIcon, Info, CalendarDays, FileText as FileIcon, MessageSquare, AlertTriangle, Fingerprint, Send, Microscope, Hospital, PlusCircle, Loader2, UserCheck } from "lucide-react";
+import { ArrowLeft, UserCircle, Stethoscope, FlaskConical, FileScan, Activity, MailIcon, Info, CalendarDays, FileText as FileIcon, MessageSquare, AlertTriangle, Fingerprint, Send, Microscope, Hospital, PlusCircle, Loader2, UserCheck, Download } from "lucide-react";
 import Image from "next/image";
 import { EmailButton } from '@/components/shared/EmailButton';
 import { useParams, useRouter } from 'next/navigation';
@@ -22,6 +22,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { FeedbackList, type FeedbackItem } from '@/components/dashboard/shared/FeedbackList';
 import { TestRequestDialog } from '@/components/dashboard/doctor/TestRequestDialog';
 import { TestRequestList, type TestRequestItem } from '@/components/dashboard/shared/TestRequestList';
+import { generatePatientPdf } from '@/lib/utils/generatePatientPdf';
+
 
 interface PatientData {
   id: string;
@@ -68,6 +70,7 @@ export default function DoctorPatientDetailPage() {
 
   const [testRequests, setTestRequests] = useState<TestRequestItem[]>([]);
   const [loadingTestRequests, setLoadingTestRequests] = useState(true);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const fetchPatientData = useCallback(async () => {
     if (!currentUser || !patientDocId) {
@@ -220,6 +223,27 @@ export default function DoctorPatientDetailPage() {
     </div>
   );
 
+  const handleDownloadReport = async () => {
+    if (!patient || !currentUser) {
+      toast({ title: "Error", description: "Patient data or user information is missing.", variant: "destructive" });
+      return;
+    }
+    setIsGeneratingPdf(true);
+    try {
+      await generatePatientPdf(patient, feedbacks, testRequests, {
+        displayName: currentUser.displayName,
+        email: currentUser.email,
+      });
+      toast({ title: "Report Generated", description: "Patient report PDF has been downloaded." });
+    } catch (error: any) {
+      console.error("Error generating PDF report:", error);
+      toast({ title: "PDF Generation Failed", description: error.message || "Could not generate the PDF report.", variant: "destructive" });
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+
   const overallLoading = authLoading || loadingPatient;
 
   if (overallLoading) {
@@ -288,24 +312,36 @@ export default function DoctorPatientDetailPage() {
         <div className="lg:col-span-2 space-y-6">
             <Card className="shadow-xl">
               <CardHeader>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                    <Image
-                        src={`https://placehold.co/80x80.png?text=${patient.patientName.substring(0,1)}`}
-                        alt="Patient Avatar" width={80} height={80}
-                        className="rounded-full border-2 border-primary"
-                        data-ai-hint="child face"
-                    />
-                    <div>
-                        <CardTitle className="text-3xl font-headline">{patient.patientName}</CardTitle>
-                        <CardDescription className="font-body">
-                        Patient Record ID: {patient.patientId} &bull; Age: {patient.patientAge} &bull; Gender: {patient.patientGender}
-                        </CardDescription>
-                        <div className="mt-2">
-                            <Badge variant={getStatusBadgeVariant(patient.feedbackStatus)} className="text-sm px-3 py-1">
-                                {feedbacks.length > 0 ? `${feedbacks.length} Feedback entr${feedbacks.length === 1 ? 'y' : 'ies'}` : patient.feedbackStatus}
-                            </Badge>
+                <div className="flex flex-col sm:flex-row justify-between items-start">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                        <Image
+                            src={`https://placehold.co/80x80.png?text=${patient.patientName.substring(0,1)}`}
+                            alt="Patient Avatar" width={80} height={80}
+                            className="rounded-full border-2 border-primary"
+                            data-ai-hint="child face"
+                        />
+                        <div>
+                            <CardTitle className="text-3xl font-headline">{patient.patientName}</CardTitle>
+                            <CardDescription className="font-body">
+                            Patient Record ID: {patient.patientId} &bull; Age: {patient.patientAge} &bull; Gender: {patient.patientGender}
+                            </CardDescription>
+                            <div className="mt-2">
+                                <Badge variant={getStatusBadgeVariant(patient.feedbackStatus)} className="text-sm px-3 py-1">
+                                    {feedbacks.length > 0 ? `${feedbacks.length} Feedback entr${feedbacks.length === 1 ? 'y' : 'ies'}` : patient.feedbackStatus}
+                                </Badge>
+                            </div>
                         </div>
                     </div>
+                    <Button 
+                        variant="default" 
+                        size="sm" 
+                        onClick={handleDownloadReport}
+                        disabled={isGeneratingPdf}
+                        className="bg-accent text-accent-foreground hover:bg-accent/90 mt-4 sm:mt-0 self-start sm:self-center"
+                    >
+                        {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                        {isGeneratingPdf ? 'Generating...' : 'Download Report'}
+                    </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-6 pt-0">
@@ -342,14 +378,14 @@ export default function DoctorPatientDetailPage() {
                   {patient.uploadedFileNames && patient.uploadedFileNames.length > 0 ? (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                       {patient.uploadedFileNames.map((fileSrc, index) => {
-                        const isImageFile = typeof fileSrc === 'string' && /\.(jpe?g|png|gif|webp)$/i.test(fileSrc);
+                        const isImageFile = typeof fileSrc === 'string' && (/\.(jpe?g|png|gif|webp)$/i.test(fileSrc) || fileSrc.startsWith('data:image') || fileSrc.includes('cloudinary'));
                         const fileNameFromUrl = typeof fileSrc === 'string' ? fileSrc.substring(fileSrc.lastIndexOf('/') + 1).split('?')[0] : 'File';
 
                         return (
                           <div key={index} className="flex flex-col items-center text-center p-2 border rounded-md bg-background shadow-sm">
-                            {isImageFile && fileSrc ? ( // Ensure fileSrc is not empty
+                            {isImageFile && fileSrc ? ( 
                               <Image
-                                src={fileSrc} // Use the fileSrc (assumed URL) directly
+                                src={fileSrc} 
                                 alt={fileNameFromUrl || 'Uploaded image'}
                                 width={150}
                                 height={150}

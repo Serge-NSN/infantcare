@@ -12,12 +12,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, Timestamp, collection, query, orderBy, onSnapshot, Unsubscribe } from 'firebase/firestore';
-import { ArrowLeft, UserCircle, Hospital, CalendarDays, Stethoscope, Microscope, FileText as FileIcon, Edit, AlertTriangle, Info, Fingerprint, UserCheck, MessageSquareText, FileScan } from 'lucide-react';
+import { ArrowLeft, UserCircle, Hospital, CalendarDays, Stethoscope, Microscope, FileText as FileIcon, Edit, AlertTriangle, Info, Fingerprint, UserCheck, MessageSquareText, FileScan, Download, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { FeedbackList, type FeedbackItem } from '@/components/dashboard/shared/FeedbackList';
 import { TestRequestList, type TestRequestItem } from '@/components/dashboard/shared/TestRequestList';
 import { useToast } from '@/hooks/use-toast';
+import { generatePatientPdf } from '@/lib/utils/generatePatientPdf';
 
 interface PatientData {
   id: string;
@@ -55,6 +56,8 @@ export default function CaregiverPatientDetailPage() {
   const [loadingFeedbacks, setLoadingFeedbacks] = useState(true);
   const [testRequests, setTestRequests] = useState<TestRequestItem[]>([]);
   const [loadingTestRequests, setLoadingTestRequests] = useState(true);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
 
   const fetchPatientData = useCallback(async () => {
     if (!currentUser || !patientDocId) {
@@ -140,6 +143,26 @@ export default function CaregiverPatientDetailPage() {
     return 'outline';
   };
   
+  const handleDownloadReport = async () => {
+    if (!patient || !currentUser) {
+      toast({ title: "Error", description: "Patient data or user information is missing.", variant: "destructive" });
+      return;
+    }
+    setIsGeneratingPdf(true);
+    try {
+      await generatePatientPdf(patient, feedbacks, testRequests, {
+        displayName: currentUser.displayName,
+        email: currentUser.email,
+      });
+      toast({ title: "Report Generated", description: "Patient report PDF has been downloaded." });
+    } catch (error: any) {
+      console.error("Error generating PDF report:", error);
+      toast({ title: "PDF Generation Failed", description: error.message || "Could not generate the PDF report.", variant: "destructive" });
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   const overallLoading = loadingPatient || authLoading;
 
   if (overallLoading) {
@@ -227,7 +250,7 @@ export default function CaregiverPatientDetailPage() {
       </Button>
 
       <Card className="shadow-xl">
-        <CardHeader className="flex flex-row justify-between items-start">
+        <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
           <div>
             <CardTitle className="text-3xl font-headline flex items-center">
               <UserCircle className="mr-3 h-10 w-10 text-primary" />
@@ -242,11 +265,23 @@ export default function CaregiverPatientDetailPage() {
                 </Badge>
             </div>
           </div>
-           <Button variant="outline" size="sm" asChild> 
-              <Link href={`/dashboard/caregiver/patient/${patient.id}/edit`}>
-                <Edit className="mr-2 h-4 w-4" /> Edit Information
-              </Link>
-            </Button>
+           <div className="flex flex-col sm:flex-row gap-2 mt-4 sm:mt-0">
+            <Button variant="outline" size="sm" asChild> 
+                <Link href={`/dashboard/caregiver/patient/${patient.id}/edit`}>
+                  <Edit className="mr-2 h-4 w-4" /> Edit Information
+                </Link>
+              </Button>
+              <Button 
+                variant="default" 
+                size="sm" 
+                onClick={handleDownloadReport}
+                disabled={isGeneratingPdf}
+                className="bg-accent text-accent-foreground hover:bg-accent/90"
+              >
+                {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                {isGeneratingPdf ? 'Generating...' : 'Download Report'}
+              </Button>
+            </div>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
@@ -283,24 +318,21 @@ export default function CaregiverPatientDetailPage() {
               {patient.uploadedFileNames && patient.uploadedFileNames.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                   {patient.uploadedFileNames.map((fileSrc, index) => {
-                    // Assuming fileSrc is now a URL. Basic check for image extension for display purposes.
-                    // A more robust check or storing file type in Firestore would be better.
-                    const isImageFile = typeof fileSrc === 'string' && /\.(jpe?g|png|gif|webp)$/i.test(fileSrc);
+                    const isImageFile = typeof fileSrc === 'string' && (/\.(jpe?g|png|gif|webp)$/i.test(fileSrc) || fileSrc.startsWith('data:image') || fileSrc.includes('cloudinary'));
                     const fileNameFromUrl = typeof fileSrc === 'string' ? fileSrc.substring(fileSrc.lastIndexOf('/') + 1).split('?')[0] : 'File';
 
 
                     return (
                       <div key={index} className="flex flex-col items-center text-center p-2 border rounded-md bg-background shadow-sm">
-                        {isImageFile ? (
+                        {isImageFile && fileSrc ? (
                           <Image
-                            src={fileSrc} // Use the fileSrc (assumed URL) directly
+                            src={fileSrc} 
                             alt={fileNameFromUrl || 'Uploaded image'}
                             width={150}
                             height={150}
                             className="rounded-md object-cover mb-1"
                             data-ai-hint="medical scan" 
                             onError={(e) => {
-                              // Fallback if the image fails to load (e.g., URL is bad)
                               (e.target as HTMLImageElement).src = 'https://placehold.co/150x150.png?text=Error';
                               (e.target as HTMLImageElement).alt = 'Error loading image';
                             }}
