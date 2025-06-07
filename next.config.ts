@@ -25,10 +25,16 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'firebasestorage.googleapis.com', // Added Firebase Storage
+        hostname: 'firebasestorage.googleapis.com',
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com', // Added Cloudinary domain
+        port: '',
+        pathname: '/**',
+      }
     ],
   },
 };

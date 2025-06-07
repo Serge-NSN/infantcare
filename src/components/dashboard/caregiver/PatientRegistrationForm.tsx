@@ -24,12 +24,12 @@ import {
 } from "@/components/ui/select";
 import { MedicalTermInput } from "@/components/shared/MedicalTermInput";
 import { useToast } from "@/hooks/use-toast";
-import { Save, FileText } from "lucide-react";
+import { Save, FileText, Loader2 } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, updateDoc, doc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { v4 as uuidv4 } from 'uuid';
-import { useEffect } from "react";
+import { useEffect, useState } from "react"; // Added useState
 import { useRouter } from "next/navigation";
 
 // Schema for form validation (values directly edited by user)
@@ -62,7 +62,7 @@ export interface PatientDataForForm {
   previousDiseases?: string;
   currentMedications?: string;
   insuranceDetails?: string;
-  uploadedFileNames?: string[]; // Will now store Data URIs
+  uploadedFileNames?: string[]; // Will now store Cloudinary URLs
   caregiverName?: string; 
 }
 
@@ -82,34 +82,12 @@ const defaultValues: Partial<PatientRegistrationFormValues> = {
   insuranceDetails: "",
 };
 
-// Helper to read file as Data URI
-const readFileAsDataURI = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    if (!file.type.startsWith('image/')) {
-      reject(new Error(`File "${file.name}" is not an image.`));
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        resolve(event.target.result as string);
-      } else {
-        reject(new Error(`Failed to read file "${file.name}".`));
-      }
-    };
-    reader.onerror = (error) => {
-      reject(new Error(`Error reading file "${file.name}": ${error}`));
-    };
-    reader.readAsDataURL(file);
-  });
-};
-
-
 export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFormProps) {
   const { toast } = useToast();
   const { currentUser } = useAuth();
   const router = useRouter();
   const isEditMode = !!patientToEdit;
+  const [isUploading, setIsUploading] = useState(false); // For upload loading state
 
   const form = useForm<PatientRegistrationFormValues>({
     resolver: zodResolver(patientRegistrationSchema),
@@ -134,6 +112,31 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
     }
   }, [isEditMode, patientToEdit, form]);
 
+  async function uploadFileToCloudinary(file: File): Promise<string | null> {
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const response = await fetch('/api/upload-image', {
+        method: 'POST',
+        body: formData,
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to upload ${file.name}`);
+      }
+      const result = await response.json();
+      return result.secure_url;
+    } catch (error: any) {
+      console.error(`Error uploading ${file.name}:`, error);
+      toast({
+        title: "File Upload Error",
+        description: error.message || `Could not upload file "${file.name}". It will be skipped.`,
+        variant: "destructive",
+      });
+      return null;
+    }
+  }
+
   async function onSubmit(data: PatientRegistrationFormValues) {
     if (!currentUser) {
       toast({
@@ -144,30 +147,26 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
       return;
     }
 
-    form.formState.isSubmitting = true; // Manually set submitting state
+    form.formState.isSubmitting = true;
+    setIsUploading(true);
 
-    const newFileDataURIs: string[] = [];
+    const uploadedImageUrls: string[] = [];
     if (data.patientFiles && data.patientFiles.length > 0) {
       for (let i = 0; i < data.patientFiles.length; i++) {
         const file = data.patientFiles[i];
-        try {
-          const dataUri = await readFileAsDataURI(file);
-          newFileDataURIs.push(dataUri);
-        } catch (fileReadError: any) {
-            console.error("Error reading file to Data URI:", fileReadError);
-            toast({
-                title: "File Processing Error",
-                description: fileReadError.message || `Could not process file "${file.name}". It will be skipped.`,
-                variant: "destructive",
-            });
+        const url = await uploadFileToCloudinary(file);
+        if (url) {
+          uploadedImageUrls.push(url);
         }
       }
     }
+    setIsUploading(false);
 
     if (isEditMode && patientToEdit) {
       const updatedPatientData: Omit<Partial<PatientDataForForm>, 'id' | 'hospitalId' | 'caregiverName'> & { updatedAt: Timestamp; uploadedFileNames: string[] } = {
         ...data,
-        uploadedFileNames: [...(patientToEdit.uploadedFileNames || []), ...newFileDataURIs],
+        // Combine existing URLs with new ones, avoid duplicates if necessary
+        uploadedFileNames: [...new Set([...(patientToEdit.uploadedFileNames || []), ...uploadedImageUrls])],
         updatedAt: serverTimestamp() as Timestamp,
       };
       delete (updatedPatientData as any).patientFiles;
@@ -206,7 +205,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
         registrationDateTime: serverTimestamp(),
         feedbackStatus: 'Pending Doctor Review',
         createdAt: serverTimestamp(),
-        uploadedFileNames: newFileDataURIs, // Store Data URIs
+        uploadedFileNames: uploadedImageUrls, 
       };
       delete (patientDataForCreate as any).patientFiles;
 
@@ -227,8 +226,6 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
            errorMessage = "Failed to register patient due to an invalid data field.";
         } else if (error.code === "unavailable" || error.message?.includes("client is offline")) {
           errorMessage = "Failed to register patient: Database offline. Check connection.";
-        } else if (error.message?.includes("exceeds the maximum allowed size")) {
-            errorMessage = "Failed to register patient: One or more image files are too large. Please use smaller images.";
         }
         toast({
           title: "Registration Failed",
@@ -237,7 +234,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
         });
       }
     }
-    form.formState.isSubmitting = false; // Reset submitting state
+    form.formState.isSubmitting = false;
   }
 
   return (
@@ -401,14 +398,22 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
             <div className="md:col-span-2 space-y-2">
               <FormLabel>Currently Uploaded Files</FormLabel>
               <ul className="list-disc list-inside text-sm text-muted-foreground p-2 border rounded-md bg-secondary/30">
-                {patientToEdit.uploadedFileNames.map((fileName, index) => (
-                  <li key={index} className="flex items-center">
-                    <FileText className="h-4 w-4 mr-2 shrink-0" />
-                    {fileName.startsWith('data:image/') ? `Embedded Image ${index + 1}` : fileName}
-                  </li>
-                ))}
+                {patientToEdit.uploadedFileNames.map((fileUrl, index) => {
+                    // Extract filename from URL for display if possible
+                    let displayName = `Cloudinary Image ${index + 1}`;
+                    try {
+                        const urlParts = fileUrl.split('/');
+                        displayName = urlParts[urlParts.length -1] || displayName;
+                    } catch (e) {}
+                  return (
+                    <li key={index} className="flex items-center">
+                      <FileText className="h-4 w-4 mr-2 shrink-0" />
+                       <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate max-w-xs">{displayName}</a>
+                    </li>
+                  );
+                })}
               </ul>
-              <p className="text-xs text-muted-foreground">Upload new image files below to add them. Images are stored as data URIs. Deleting files is not supported in this form.</p>
+              <p className="text-xs text-muted-foreground">Upload new image files below to add them. Deleting files is not supported in this form.</p>
             </div>
           )}
 
@@ -424,20 +429,20 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
                     {...rest}
                     onChange={(e) => onChange(e.target.files)}
                     multiple
-                    accept="image/jpeg, image/png, image/gif, image/webp"
+                    accept="image/jpeg, image/png, image/gif, image/webp" // Accept common image types
                   />
                 </FormControl>
                 <FormMessage />
-                <p className="text-xs text-muted-foreground">Only image files (.jpg, .png, .gif, .webp) are accepted. You can select multiple files. Images will be stored as Data URIs. Large files may cause errors.</p>
+                <p className="text-xs text-muted-foreground">Only image files are accepted. You can select multiple files. Images will be uploaded to Cloudinary.</p>
               </FormItem>
             )}
           />
         </div>
-        <Button type="submit" className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground" disabled={form.formState.isSubmitting || !currentUser}>
-          <Save className="mr-2 h-5 w-5" /> {form.formState.isSubmitting ? (isEditMode ? "Saving Changes..." : "Registering...") : (isEditMode ? "Save Changes" : "Register Patient")}
+        <Button type="submit" className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground" disabled={form.formState.isSubmitting || isUploading || !currentUser}>
+          {form.formState.isSubmitting || isUploading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
+          {isUploading ? "Uploading files..." : (form.formState.isSubmitting ? (isEditMode ? "Saving Changes..." : "Registering...") : (isEditMode ? "Save Changes" : "Register Patient"))}
         </Button>
       </form>
     </Form>
   );
 }
-

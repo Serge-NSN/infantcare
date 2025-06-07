@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, onSnapshot, Unsubscribe, doc, updateDoc, serverTimestamp, Timestamp, getDoc as firebaseGetDoc } from 'firebase/firestore';
-import { ArrowLeft, AlertTriangle, FileText as FileIcon, Upload, Send } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, FileText as FileIcon, Upload, Send, Loader2 } from 'lucide-react';
 import { TestRequestList, type TestRequestItem } from '@/components/dashboard/shared/TestRequestList';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,35 +21,39 @@ interface CaregiverTestRequestItem extends TestRequestItem {
   patientName?: string;
 }
 
-// Helper to read file as Data URI
-const readFileAsDataURI = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    if (!file.type.startsWith('image/')) {
-      reject(new Error(`File "${file.name}" is not an image.`));
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        resolve(event.target.result as string);
-      } else {
-        reject(new Error(`Failed to read file "${file.name}".`));
-      }
-    };
-    reader.onerror = (error) => {
-      reject(new Error(`Error reading file "${file.name}": ${error}`));
-    };
-    reader.readAsDataURL(file);
-  });
-};
-
-
 interface FulfillRequestDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   request: CaregiverTestRequestItem;
   onSubmit: (requestId: string, notes: string, files: FileList | null) => Promise<void>;
 }
+
+// Shared function to upload a single file to Cloudinary via API route
+async function uploadFileToCloudinary(file: File, toast: ReturnType<typeof useToast>['toast']): Promise<string | null> {
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const response = await fetch('/api/upload-image', {
+        method: 'POST',
+        body: formData,
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to upload ${file.name}`);
+      }
+      const result = await response.json();
+      return result.secure_url;
+    } catch (error: any) {
+      console.error(`Error uploading ${file.name}:`, error);
+      toast({
+        title: "File Upload Error",
+        description: error.message || `Could not upload file "${file.name}". It will be skipped.`,
+        variant: "destructive",
+      });
+      return null;
+    }
+}
+
 
 function FulfillRequestDialog({ isOpen, onOpenChange, request, onSubmit }: FulfillRequestDialogProps) {
   const [notes, setNotes] = useState('');
@@ -73,7 +77,7 @@ function FulfillRequestDialog({ isOpen, onOpenChange, request, onSubmit }: Fulfi
       <Card className="bg-card p-0 rounded-lg shadow-xl w-full max-w-lg m-4">
         <CardHeader>
           <CardTitle>Fulfill Test Request: {request.testName}</CardTitle>
-          <CardDescription>For patient: {request.patientName || 'N/A'}. Upload results (images preferred, stored as Data URIs) and add notes.</CardDescription>
+          <CardDescription>For patient: {request.patientName || 'N/A'}. Upload results (images preferred, will be stored in Cloudinary) and add notes.</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
@@ -84,13 +88,13 @@ function FulfillRequestDialog({ isOpen, onOpenChange, request, onSubmit }: Fulfi
             <div>
               <label htmlFor="resultFiles" className="block text-sm font-medium mb-1">Upload Result Files (Images Only)</label>
               <Input id="resultFiles" type="file" multiple onChange={(e) => setFiles(e.target.files)} accept="image/*" />
-              <p className="text-xs text-muted-foreground mt-1">You can upload multiple image files. Large files may cause errors.</p>
+              <p className="text-xs text-muted-foreground mt-1">You can upload multiple image files. Images will be uploaded to Cloudinary.</p>
             </div>
           </CardContent>
           <CardFooter className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>Cancel</Button>
             <Button type="submit" disabled={isSubmitting} className="bg-accent text-accent-foreground hover:bg-accent/90">
-              {isSubmitting ? 'Submitting...' : <><Upload className="mr-2 h-4 w-4" /> Submit Results</>}
+              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <><Upload className="mr-2 h-4 w-4" /> Submit Results</>}
             </Button>
           </CardFooter>
         </form>
@@ -112,6 +116,7 @@ export default function CaregiverTestRequestsPage() {
   
   const [selectedRequestToFulfill, setSelectedRequestToFulfill] = useState<CaregiverTestRequestItem | null>(null);
   const [isFulfillDialogOpen, setIsFulfillDialogOpen] = useState(false);
+  const [isUploadingFulfill, setIsUploadingFulfill] = useState(false);
 
   useEffect(() => {
     const patientIdParam = searchParams.get('patientId');
@@ -205,44 +210,39 @@ export default function CaregiverTestRequestsPage() {
 
   const handleFulfillSubmit = async (requestId: string, notes: string, files: FileList | null) => {
     if (!selectedRequestToFulfill) return;
-
-    const resultDataURIs: string[] = [];
+    
+    setIsUploadingFulfill(true);
+    const resultCloudinaryUrls: string[] = [];
     if (files && files.length > 0) {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        try {
-          const dataUri = await readFileAsDataURI(file); // Use helper
-          resultDataURIs.push(dataUri);
-        } catch (fileReadError: any) {
-            console.error("Error reading file to Data URI for test results:", fileReadError);
-            toast({
-                title: "File Processing Error",
-                description: fileReadError.message || `Could not process file "${file.name}" for test results. It will be skipped.`,
-                variant: "destructive",
-            });
+        const url = await uploadFileToCloudinary(file, toast);
+        if (url) {
+          resultCloudinaryUrls.push(url);
         }
       }
     }
+    setIsUploadingFulfill(false);
 
     try {
       const testRequestDocRef = doc(db, 'patients', selectedRequestToFulfill.patientId, 'testRequests', requestId);
       await updateDoc(testRequestDocRef, {
         status: 'Fulfilled',
         resultNotes: notes,
-        resultFileNames: resultDataURIs, // Store Data URIs
+        resultFileNames: resultCloudinaryUrls, // Store Cloudinary URLs
         fulfilledAt: serverTimestamp(),
       });
       toast({ title: 'Test Results Submitted', description: 'The doctor will be notified.' });
       
-      if (resultDataURIs.length > 0) {
+      // Add these new Cloudinary URLs to the main patient document as well
+      if (resultCloudinaryUrls.length > 0) {
         const patientDocRef = doc(db, "patients", selectedRequestToFulfill.patientId);
         const patientDocSnap = await firebaseGetDoc(patientDocRef);
         if (patientDocSnap.exists()) {
           const existingFiles = patientDocSnap.data().uploadedFileNames || [];
-          // Ensure uploadedFileNames contains only strings (Data URIs)
           const validExistingFiles = existingFiles.filter((f: any) => typeof f === 'string');
           await updateDoc(patientDocRef, {
-              uploadedFileNames: [...validExistingFiles, ...resultDataURIs]
+              uploadedFileNames: [...new Set([...validExistingFiles, ...resultCloudinaryUrls])]
           });
         }
       }
@@ -251,9 +251,6 @@ export default function CaregiverTestRequestsPage() {
     } catch (error: any) {
       console.error('Error fulfilling test request:', error);
       let errorMessage = 'Could not submit test results.';
-      if (error.message?.includes("exceeds the maximum allowed size")) {
-        errorMessage = "Could not submit test results: One or more image files are too large. Please use smaller images.";
-      }
       toast({ title: 'Submission Failed', description: errorMessage, variant: 'destructive' });
     }
   };
@@ -326,5 +323,3 @@ export default function CaregiverTestRequestsPage() {
     </div>
   );
 }
-
-    
