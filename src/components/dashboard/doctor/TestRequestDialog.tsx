@@ -42,9 +42,8 @@ export function TestRequestDialog({ patientId, patientName, onTestRequested }: T
   const { currentUser } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { control, handleSubmit, reset, formState: { errors } } = useForm<TestRequestFormValues>({
+  const { control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<TestRequestFormValues>({
     resolver: zodResolver(testRequestSchema),
     defaultValues: {
       testName: '',
@@ -57,7 +56,7 @@ export function TestRequestDialog({ patientId, patientName, onTestRequested }: T
       toast({ title: 'Error', description: 'You must be logged in.', variant: 'destructive' });
       return;
     }
-    setIsSubmitting(true);
+    // react-hook-form handles isSubmitting state automatically
     try {
       const testRequestsCollectionRef = collection(db, 'patients', patientId, 'testRequests');
       await addDoc(testRequestsCollectionRef, {
@@ -76,8 +75,6 @@ export function TestRequestDialog({ patientId, patientName, onTestRequested }: T
     } catch (error) {
       console.error('Error requesting test:', error);
       toast({ title: 'Error', description: 'Failed to request test.', variant: 'destructive' });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 

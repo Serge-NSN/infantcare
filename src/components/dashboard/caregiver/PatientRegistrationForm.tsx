@@ -29,7 +29,7 @@ import { db } from "@/lib/firebase";
 import { collection, addDoc, updateDoc, doc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { v4 as uuidv4 } from 'uuid';
-import { useEffect, useState } from "react"; // Added useState
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 // Schema for form validation (values directly edited by user)
@@ -44,15 +44,15 @@ const patientRegistrationSchema = z.object({
   previousDiseases: z.string().optional().default(""),
   currentMedications: z.string().optional().default(""),
   insuranceDetails: z.string().optional().default(""),
-  patientFiles: z.custom<FileList>().optional(), 
+  patientFiles: z.custom<FileList>().optional(),
 });
 
 type PatientRegistrationFormValues = z.infer<typeof patientRegistrationSchema>;
 
 export interface PatientDataForForm {
-  id: string; 
+  id: string;
   hospitalName: string;
-  hospitalId: string; 
+  hospitalId: string;
   patientName: string;
   patientAge: string;
   patientGender: "Male" | "Female" | "Other";
@@ -62,8 +62,8 @@ export interface PatientDataForForm {
   previousDiseases?: string;
   currentMedications?: string;
   insuranceDetails?: string;
-  uploadedFileNames?: string[]; // Will now store Cloudinary URLs
-  caregiverName?: string; 
+  uploadedFileNames?: string[];
+  caregiverName?: string;
 }
 
 interface PatientRegistrationFormProps {
@@ -87,7 +87,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
   const { currentUser } = useAuth();
   const router = useRouter();
   const isEditMode = !!patientToEdit;
-  const [isUploading, setIsUploading] = useState(false); // For upload loading state
+  const [isUploading, setIsUploading] = useState(false);
 
   const form = useForm<PatientRegistrationFormValues>({
     resolver: zodResolver(patientRegistrationSchema),
@@ -147,9 +147,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
       return;
     }
 
-    form.formState.isSubmitting = true;
     setIsUploading(true);
-
     const uploadedImageUrls: string[] = [];
     if (data.patientFiles && data.patientFiles.length > 0) {
       for (let i = 0; i < data.patientFiles.length; i++) {
@@ -162,16 +160,15 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
     }
     setIsUploading(false);
 
-    if (isEditMode && patientToEdit) {
-      const updatedPatientData: Omit<Partial<PatientDataForForm>, 'id' | 'hospitalId' | 'caregiverName'> & { updatedAt: Timestamp; uploadedFileNames: string[] } = {
-        ...data,
-        // Combine existing URLs with new ones, avoid duplicates if necessary
-        uploadedFileNames: [...new Set([...(patientToEdit.uploadedFileNames || []), ...uploadedImageUrls])],
-        updatedAt: serverTimestamp() as Timestamp,
-      };
-      delete (updatedPatientData as any).patientFiles;
+    try {
+      if (isEditMode && patientToEdit) {
+        const updatedPatientData: Omit<Partial<PatientDataForForm>, 'id' | 'hospitalId' | 'caregiverName'> & { updatedAt: Timestamp; uploadedFileNames: string[] } = {
+          ...data,
+          uploadedFileNames: [...new Set([...(patientToEdit.uploadedFileNames || []), ...uploadedImageUrls])],
+          updatedAt: serverTimestamp() as Timestamp,
+        };
+        delete (updatedPatientData as any).patientFiles;
 
-      try {
         const patientDocRef = doc(db, "patients", patientToEdit.id);
         await updateDoc(patientDocRef, updatedPatientData);
         toast({
@@ -179,37 +176,26 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
           description: `${data.patientName}'s information has been updated.`,
         });
         router.push(`/dashboard/caregiver/patient/${patientToEdit.id}`);
-      } catch (error: any) {
-        console.error("Error updating patient:", error);
-        toast({
-          title: "Update Failed",
-          description: "Failed to update patient information. Please try again.",
-          variant: "destructive",
-        });
-      }
-    } else {
-      // Create new patient
-      const generatedPatientId = `PAT-${uuidv4().substring(0, 8).toUpperCase()}`;
-      const hospitalNamePrefix = data.hospitalName.substring(0, 3).toUpperCase();
-      const randomDigits = Math.floor(1000 + Math.random() * 9000);
-      const generatedHospitalId = `${hospitalNamePrefix}-${randomDigits}`;
-      
-      const caregiverName = currentUser.displayName || (typeof window !== 'undefined' ? localStorage.getItem('userFullName') : null) || currentUser.email?.split('@')[0] || 'Caregiver';
+      } else {
+        const generatedPatientId = `PAT-${uuidv4().substring(0, 8).toUpperCase()}`;
+        const hospitalNamePrefix = data.hospitalName.substring(0, 3).toUpperCase();
+        const randomDigits = Math.floor(1000 + Math.random() * 9000);
+        const generatedHospitalId = `${hospitalNamePrefix}-${randomDigits}`;
+        const caregiverName = currentUser.displayName || (typeof window !== 'undefined' ? localStorage.getItem('userFullName') : null) || currentUser.email?.split('@')[0] || 'Caregiver';
 
-      const patientDataForCreate = {
-        ...data,
-        patientId: generatedPatientId,
-        hospitalId: generatedHospitalId, 
-        caregiverUid: currentUser.uid,
-        caregiverName: caregiverName, 
-        registrationDateTime: serverTimestamp(),
-        feedbackStatus: 'Pending Doctor Review',
-        createdAt: serverTimestamp(),
-        uploadedFileNames: uploadedImageUrls, 
-      };
-      delete (patientDataForCreate as any).patientFiles;
+        const patientDataForCreate = {
+          ...data,
+          patientId: generatedPatientId,
+          hospitalId: generatedHospitalId,
+          caregiverUid: currentUser.uid,
+          caregiverName: caregiverName,
+          registrationDateTime: serverTimestamp(),
+          feedbackStatus: 'Pending Doctor Review',
+          createdAt: serverTimestamp(),
+          uploadedFileNames: uploadedImageUrls,
+        };
+        delete (patientDataForCreate as any).patientFiles;
 
-      try {
         const newPatientRef = await addDoc(collection(db, "patients"), patientDataForCreate);
         toast({
           title: "Patient Registration Successful",
@@ -217,24 +203,23 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
         });
         form.reset(defaultValues);
         router.push(`/dashboard/caregiver/patient/${newPatientRef.id}`);
-      } catch (error: any) {
-        console.error("Error registering patient:", error);
-        let errorMessage = "Failed to register patient. Please try again.";
-        if (error.code === "firestore/permission-denied") {
-          errorMessage = "Permission denied. Please check Firestore rules.";
-        } else if (error.message?.includes("Unsupported field value")) {
-           errorMessage = "Failed to register patient due to an invalid data field.";
-        } else if (error.code === "unavailable" || error.message?.includes("client is offline")) {
-          errorMessage = "Failed to register patient: Database offline. Check connection.";
-        }
-        toast({
-          title: "Registration Failed",
-          description: errorMessage,
-          variant: "destructive",
-        });
       }
+    } catch (error: any) {
+      console.error("Error processing patient form:", error);
+      let errorMessage = isEditMode ? "Failed to update patient information." : "Failed to register patient.";
+      if (error.code === "firestore/permission-denied") {
+        errorMessage += " Permission denied. Please check Firestore rules.";
+      } else if (error.message?.includes("Unsupported field value")) {
+         errorMessage += " An invalid data field was provided.";
+      } else if (error.code === "unavailable" || error.message?.includes("client is offline")) {
+        errorMessage += " Database offline. Check connection.";
+      }
+      toast({
+        title: isEditMode ? "Update Failed" : "Registration Failed",
+        description: errorMessage + " Please try again.",
+        variant: "destructive",
+      });
     }
-    form.formState.isSubmitting = false;
   }
 
   return (
@@ -399,7 +384,6 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
               <FormLabel>Currently Uploaded Files</FormLabel>
               <ul className="list-disc list-inside text-sm text-muted-foreground p-2 border rounded-md bg-secondary/30">
                 {patientToEdit.uploadedFileNames.map((fileUrl, index) => {
-                    // Extract filename from URL for display if possible
                     let displayName = `Cloudinary Image ${index + 1}`;
                     try {
                         const urlParts = fileUrl.split('/');
@@ -429,7 +413,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
                     {...rest}
                     onChange={(e) => onChange(e.target.files)}
                     multiple
-                    accept="image/jpeg, image/png, image/gif, image/webp" // Accept common image types
+                    accept="image/jpeg, image/png, image/gif, image/webp"
                   />
                 </FormControl>
                 <FormMessage />
@@ -438,7 +422,11 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
             )}
           />
         </div>
-        <Button type="submit" className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground" disabled={form.formState.isSubmitting || isUploading || !currentUser}>
+        <Button
+          type="submit"
+          className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground"
+          disabled={form.formState.isSubmitting || isUploading || !currentUser}
+        >
           {form.formState.isSubmitting || isUploading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
           {isUploading ? "Uploading files..." : (form.formState.isSubmitting ? (isEditMode ? "Saving Changes..." : "Registering...") : (isEditMode ? "Save Changes" : "Register Patient"))}
         </Button>
