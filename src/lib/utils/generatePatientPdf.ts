@@ -65,10 +65,6 @@ const FONT_SIZE_XLARGE = 20;
 
 async function fetchImageAsBase64(imageUrl: string): Promise<string | null> {
   try {
-    // Note: For Cloudinary, ensure the URL is directly fetchable or use a proxy/serverless function
-    // if CORS issues arise with direct client-side fetch.
-    // For testing, if you face CORS issues, you can temporarily use a CORS proxy,
-    // but for production, configure Cloudinary correctly or fetch via your backend.
     const response = await fetch(imageUrl);
     if (!response.ok) {
       console.error(`Failed to fetch image: ${response.status} ${response.statusText} for URL ${imageUrl}`);
@@ -189,12 +185,12 @@ export async function generatePatientPdf(
   addDetailItem('Insurance Details', patient.insuranceDetails);
   yPosition += DEFAULT_LINE_HEIGHT * 0.5;
 
-  // Uploaded Files (Images)
+  // Uploaded Files (Images by Caregiver in main patient doc)
   if (patient.uploadedFileNames && patient.uploadedFileNames.length > 0) {
-    addSectionTitle('Uploaded Medical Files/Images');
+    addSectionTitle('Uploaded Medical Files/Images (Caregiver)');
     for (const imageUrl of patient.uploadedFileNames) {
       if (typeof imageUrl === 'string' && (imageUrl.startsWith('http') || imageUrl.startsWith('data:image'))) {
-        checkPageBreak(80); // Reserve space for image + caption
+        checkPageBreak(80); 
         doc.setFontSize(FONT_SIZE_SMALL);
         doc.setTextColor(150);
         const fileName = imageUrl.startsWith('data:') ? 'Embedded Image' : imageUrl.substring(imageUrl.lastIndexOf('/') + 1).split('?')[0] || 'Image File';
@@ -206,15 +202,22 @@ export async function generatePatientPdf(
         if (base64Image) {
           try {
             const imgProps = doc.getImageProperties(base64Image);
-            const imgWidth = CONTENT_WIDTH * 0.75; // Use 75% of content width
+            const imgWidth = CONTENT_WIDTH * 0.75; 
             const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
             
             if (yPosition + imgHeight > PAGE_HEIGHT - MARGIN) {
                 doc.addPage();
                 yPosition = MARGIN;
+                 // Re-add page header
+                doc.setFontSize(FONT_SIZE_SMALL);
+                doc.setTextColor(100);
+                doc.text(`Patient Report: ${patient.patientName} (ID: ${patient.patientId}) - Page ${doc.getNumberOfPages()}`, MARGIN, MARGIN / 2);
+                doc.line(MARGIN, MARGIN / 2 + 2, PAGE_WIDTH - MARGIN, MARGIN / 2 + 2);
+                yPosition = MARGIN + 5;
+                doc.setTextColor(0);
             }
             doc.addImage(base64Image, imgProps.fileType, MARGIN + (CONTENT_WIDTH * 0.125), yPosition, imgWidth, imgHeight);
-            yPosition += imgHeight + DEFAULT_LINE_HEIGHT * 0.5; // Space after image
+            yPosition += imgHeight + DEFAULT_LINE_HEIGHT * 0.5; 
           } catch (e) {
             console.error("Error adding image to PDF:", e);
             addWrappedText(`Error displaying image: ${fileName}`, 5, { fontSize: FONT_SIZE_SMALL, fontStyle: 'italic' });
@@ -231,8 +234,8 @@ export async function generatePatientPdf(
   // Feedback History
   if (feedbacks.length > 0) {
     addSectionTitle('Doctor Feedback History');
-    feedbacks.forEach(fb => {
-      checkPageBreak(DEFAULT_LINE_HEIGHT * 3); // Estimate for feedback block
+    feedbacks.forEach(fb => { // forEach is fine here as no await inside its direct callback
+      checkPageBreak(DEFAULT_LINE_HEIGHT * 3); 
       doc.setFontSize(FONT_SIZE_SMALL);
       doc.setTextColor(100);
       doc.text(
@@ -250,8 +253,9 @@ export async function generatePatientPdf(
   // Test Requests
   if (testRequests.length > 0) {
     addSectionTitle('Test Request History');
-    testRequests.forEach(tr => {
-      checkPageBreak(DEFAULT_LINE_HEIGHT * 4); // Estimate for test request block
+    // Changed from forEach to for...of to allow await inside
+    for (const tr of testRequests) { 
+      checkPageBreak(DEFAULT_LINE_HEIGHT * 4); 
       doc.setFontSize(FONT_SIZE_NORMAL);
       doc.setFont('helvetica', 'bold');
       doc.text(`Test: ${tr.testName} (Status: ${tr.status})`, MARGIN, yPosition);
@@ -277,22 +281,30 @@ export async function generatePatientPdf(
 
         if (tr.resultFileNames && tr.resultFileNames.length > 0) {
           addWrappedText('Uploaded Result Files:', 10, { fontSize: FONT_SIZE_NORMAL, fontStyle: 'bold' });
-          for (const imageUrl of tr.resultFileNames) {
+          // This inner loop is fine with await because the outer loop is now for...of
+          for (const imageUrl of tr.resultFileNames) { 
              if (typeof imageUrl === 'string' && (imageUrl.startsWith('http') || imageUrl.startsWith('data:image'))) {
-                checkPageBreak(70); // Reserve space for image
+                checkPageBreak(70); 
                 const fileName = imageUrl.startsWith('data:') ? 'Embedded Result Image' : imageUrl.substring(imageUrl.lastIndexOf('/') + 1).split('?')[0] || 'Result Image';
                 addWrappedText(`File: ${fileName}`, 15, { fontSize: FONT_SIZE_SMALL });
 
-                const base64Image = imageUrl.startsWith('data:image') ? imageUrl : await fetchImageAsBase64(imageUrl);
+                const base64Image = imageUrl.startsWith('data:image') ? imageUrl : await fetchImageAsBase64(imageUrl); // Await is fine here
                 if (base64Image) {
                   try {
                     const imgProps = doc.getImageProperties(base64Image);
-                    const imgWidth = CONTENT_WIDTH * 0.6; // Smaller for test results
+                    const imgWidth = CONTENT_WIDTH * 0.6; 
                     const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
                     
                     if (yPosition + imgHeight > PAGE_HEIGHT - MARGIN) {
                         doc.addPage();
                         yPosition = MARGIN;
+                        // Re-add page header
+                        doc.setFontSize(FONT_SIZE_SMALL);
+                        doc.setTextColor(100);
+                        doc.text(`Patient Report: ${patient.patientName} (ID: ${patient.patientId}) - Page ${doc.getNumberOfPages()}`, MARGIN, MARGIN / 2);
+                        doc.line(MARGIN, MARGIN / 2 + 2, PAGE_WIDTH - MARGIN, MARGIN / 2 + 2);
+                        yPosition = MARGIN + 5;
+                        doc.setTextColor(0);
                     }
                     doc.addImage(base64Image, imgProps.fileType, MARGIN + 15 + (CONTENT_WIDTH * 0.05), yPosition, imgWidth, imgHeight);
                     yPosition += imgHeight + DEFAULT_LINE_HEIGHT * 0.3;
@@ -310,16 +322,16 @@ export async function generatePatientPdf(
         addWrappedText(`Doctor's Review of Results: ${tr.doctorNotes}`, 10, { fontSize: FONT_SIZE_NORMAL, fontStyle: 'bolditalic' });
       }
       yPosition += DEFAULT_LINE_HEIGHT * 0.5;
-    });
+    }
   }
 
   // Footer for the last page
   doc.setFontSize(FONT_SIZE_SMALL);
   doc.setTextColor(150);
   const finalPageNum = doc.getNumberOfPages();
-  doc.setPage(finalPageNum); // Go to the last page to add footer
+  doc.setPage(finalPageNum); 
   doc.text(`End of Report. Total Pages: ${finalPageNum}`, MARGIN, PAGE_HEIGHT - (MARGIN / 2));
-
 
   doc.save(`Patient_Report_${patient.patientName.replace(/\s+/g, '_')}_${patient.patientId}.pdf`);
 }
+
