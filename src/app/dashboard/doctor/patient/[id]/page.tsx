@@ -378,15 +378,34 @@ export default function DoctorPatientDetailPage() {
                   {patient.uploadedFileNames && patient.uploadedFileNames.length > 0 ? (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                       {patient.uploadedFileNames.map((fileSrc, index) => {
-                        const isImageFile = typeof fileSrc === 'string' && (/\.(jpe?g|png|gif|webp)$/i.test(fileSrc) || fileSrc.startsWith('data:image') || fileSrc.includes('cloudinary'));
-                        const fileNameFromUrl = typeof fileSrc === 'string' ? fileSrc.substring(fileSrc.lastIndexOf('/') + 1).split('?')[0] : 'File';
+                        const fileNameFromUrl = (typeof fileSrc === 'string' && fileSrc.startsWith('http'))
+                          ? fileSrc.substring(fileSrc.lastIndexOf('/') + 1).split('?')[0] || 'File'
+                          : (typeof fileSrc === 'string' && fileSrc.startsWith('data:image'))
+                          ? `Embedded Image ${index + 1}`
+                          : `File ${index + 1}`;
 
+                        let showActualImage = false;
+                        if (typeof fileSrc === 'string' && fileSrc.trim() !== '') {
+                          if (fileSrc.startsWith('data:image')) {
+                            showActualImage = true;
+                          } else if (fileSrc.startsWith('http://') || fileSrc.startsWith('https://')) {
+                             if ((/\.(jpe?g|png|gif|webp)(\?|$)/i.test(fileSrc) || fileSrc.includes('cloudinary'))) {
+                                try {
+                                    new URL(fileSrc); // Validate URL structure
+                                    showActualImage = true;
+                                } catch (e) {
+                                    console.warn(`[Image Check] Malformed URL string in uploadedFileNames: ${fileSrc}`);
+                                }
+                            }
+                          }
+                        }
+                        
                         return (
                           <div key={index} className="flex flex-col items-center text-center p-2 border rounded-md bg-background shadow-sm">
-                            {isImageFile && fileSrc ? ( 
+                            {showActualImage && fileSrc ? ( 
                               <Image
                                 src={fileSrc} 
-                                alt={fileNameFromUrl || 'Uploaded image'}
+                                alt={fileNameFromUrl}
                                 width={150}
                                 height={150}
                                 className="rounded-md object-cover mb-1"
@@ -404,9 +423,9 @@ export default function DoctorPatientDetailPage() {
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <p className="text-xs text-foreground truncate w-full max-w-[140px]">{fileNameFromUrl || 'Unnamed file'}</p>
+                                  <p className="text-xs text-foreground truncate w-full max-w-[140px]">{fileNameFromUrl}</p>
                                 </TooltipTrigger>
-                                <TooltipContent><p>{fileNameFromUrl || 'Unnamed file'}</p></TooltipContent>
+                                <TooltipContent><p>{fileNameFromUrl}</p></TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
                           </div>
