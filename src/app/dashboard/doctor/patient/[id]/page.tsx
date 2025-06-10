@@ -34,11 +34,11 @@ interface PatientData {
   patientGender: string;
   patientAddress: string;
   patientPhoneNumber: string;
-  patientReligion?: string;
+  // patientReligion?: string; // Removed
   hospitalName: string;
   previousDiseases?: string;
   currentMedications?: string;
-  insuranceDetails?: string;
+  // insuranceDetails?: string; // Removed
   uploadedFileNames?: string[]; // Assumed to be URLs now
   registrationDateTime: Timestamp;
   feedbackStatus: string; 
@@ -176,11 +176,10 @@ export default function DoctorPatientDetailPage() {
       const feedbacksCollectionRef = collection(db, "patients", patient.id, "patientFeedbacks");
       await addDoc(feedbacksCollectionRef, feedbackData);
 
-      // Update the main patient document's feedbackStatus
       const patientDocRef = doc(db, "patients", patient.id);
       await updateDoc(patientDocRef, { 
         feedbackStatus: 'Reviewed by Doctor', 
-        lastFeedbackAt: serverTimestamp() // Optional: track last feedback time on main doc
+        lastFeedbackAt: serverTimestamp()
       });
 
 
@@ -254,7 +253,7 @@ export default function DoctorPatientDetailPage() {
             <Card className="lg:col-span-2 shadow-xl">
                  <CardHeader><Skeleton className="h-20 w-full" /></CardHeader>
                  <CardContent className="space-y-4">
-                    {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
+                    {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)} {/* Reduced from 4 */}
                  </CardContent>
             </Card>
             <Card className="shadow-xl h-fit">
@@ -361,7 +360,6 @@ export default function DoctorPatientDetailPage() {
                         <CardTitle className="text-xl font-headline mb-3 flex items-center"><Info className="mr-2 h-5 w-5 text-primary" />Patient Demographics</CardTitle>
                         <DetailItem label="Address" value={patient.patientAddress} />
                         <DetailItem label="Guardian Phone" value={patient.patientPhoneNumber} />
-                        <DetailItem label="Religion" value={patient.patientReligion} />
                     </Card>
                 </div>
                  <Card className="p-4 bg-secondary/30">
@@ -369,7 +367,6 @@ export default function DoctorPatientDetailPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
                         <DetailItem label="Previous Diseases" value={patient.previousDiseases} />
                         <DetailItem label="Current Medications" value={patient.currentMedications} />
-                        <DetailItem label="Insurance Details" value={patient.insuranceDetails} />
                     </div>
                 </Card>
 
@@ -391,10 +388,10 @@ export default function DoctorPatientDetailPage() {
                           } else if (fileSrc.startsWith('http://') || fileSrc.startsWith('https://')) {
                              if ((/\.(jpe?g|png|gif|webp)(\?|$)/i.test(fileSrc) || fileSrc.includes('cloudinary'))) {
                                 try {
-                                    new URL(fileSrc); // Validate URL structure
+                                    new URL(fileSrc); 
                                     showActualImage = true;
                                 } catch (e) {
-                                    console.warn(`[Image Check] Malformed URL string in uploadedFileNames: ${fileSrc}`);
+                                    // console.warn(`[Image Check] Malformed URL string in uploadedFileNames: ${fileSrc}`);
                                 }
                             }
                           }
@@ -405,7 +402,7 @@ export default function DoctorPatientDetailPage() {
                             {showActualImage && fileSrc ? ( 
                               <Image
                                 src={fileSrc} 
-                                alt={fileNameFromUrl}
+                                alt={fileNameFromUrl || 'Uploaded image'}
                                 width={150}
                                 height={150}
                                 className="rounded-md object-cover mb-1"
@@ -489,24 +486,24 @@ export default function DoctorPatientDetailPage() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                      <EmailButton
-                        receiverEmail={caregiverProfile?.email || "caregiver-email-not-found@example.com"}
-                        subject={`Regarding Patient: ${patient.patientName} (ID: ${patient.patientId}) - Request for Information`}
-                        body={`Dear Caregiver,\n\nCould you please provide additional information or clarification regarding patient ${patient.patientName} (ID: ${patient.patientId})?\n\nSpecifically, I need...\n\nThank you,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
-                        buttonText="Request Info from Caregiver"
+                        receiverEmail={caregiverProfile?.email || "caregiver-email-not-found@example.cm"}
+                        subject={`Concernant le Patient: ${patient.patientName} (ID: ${patient.patientId}) - Demande d'Information`}
+                        body={`Cher Personnel Soignant,\n\nPourriez-vous s'il vous plaît fournir des informations supplémentaires ou des éclaircissements concernant le patient ${patient.patientName} (ID: ${patient.patientId})?\n\nPlus précisément, j'ai besoin de...\n\nMerci,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
+                        buttonText="Demander Infos au Soignant"
                         icon={<Send className="mr-2 h-4 w-4" />}
                         className="w-full"
                         disabled={!caregiverProfile?.email}
-                        title={!caregiverProfile?.email ? "Caregiver email not available" : ""}
+                        title={!caregiverProfile?.email ? "E-mail du soignant non disponible" : ""}
                     />
                     <EmailButton
-                        receiverEmail="specialist-consult@infantcare.example.com" // Placeholder
-                        subject={`Specialist Consultation Request for Patient: ${patient.patientName} (ID: ${patient.patientId})`}
-                        body={`Dear Specialist,\n\nI would like to request your consultation for patient ${patient.patientName} (ID: ${patient.patientId}).\n\nCase details: ...\n\nThank you,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
-                        buttonText="Contact Specialist"
+                        receiverEmail="specialiste-consult@infantcare.cm" 
+                        subject={`Demande de Consultation Spécialiste pour Patient: ${patient.patientName} (ID: ${patient.patientId})`}
+                        body={`Cher Spécialiste,\n\nJe voudrais demander votre consultation pour le patient ${patient.patientName} (ID: ${patient.patientId}).\n\nDétails du cas: ...\n\nMerci,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
+                        buttonText="Contacter Spécialiste"
                         icon={<MailIcon className="mr-2 h-4 w-4" />}
                         className="w-full"
                     />
-                    <p className="text-xs text-muted-foreground text-center">Specialist email is a placeholder.</p>
+                    <p className="text-xs text-muted-foreground text-center">L'e-mail du spécialiste est une adresse générique.</p>
                 </CardContent>
             </Card>
         </div>

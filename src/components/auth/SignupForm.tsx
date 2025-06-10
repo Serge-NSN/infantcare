@@ -31,14 +31,14 @@ import { useState } from "react";
 
 const signupFormSchema = z.object({
   role: z.enum(["Caregiver", "Specialist", "Medical Doctor"], {
-    required_error: "Please select a role.",
+    required_error: "Veuillez sélectionner un rôle.",
   }),
-  career: z.string().min(2, "Career must be at least 2 characters."),
-  fullName: z.string().min(2, "Full name must be at least 2 characters."),
-  address: z.string().min(5, "Address must be at least 5 characters."),
-  hospital: z.string().min(2, "Hospital name must be at least 2 characters."),
-  email: z.string().email("Invalid email address."),
-  password: z.string().min(8, "Password must be at least 8 characters."),
+  career: z.string().min(2, "La carrière doit comporter au moins 2 caractères."),
+  fullName: z.string().min(2, "Le nom complet doit comporter au moins 2 caractères."),
+  address: z.string().min(5, "L'adresse doit comporter au moins 5 caractères."),
+  hospital: z.string().min(2, "Le nom de l'hôpital doit comporter au moins 2 caractères."),
+  email: z.string().email("Adresse e-mail invalide."),
+  password: z.string().min(8, "Le mot de passe doit comporter au moins 8 caractères."),
 });
 
 type SignupFormValues = z.infer<typeof signupFormSchema>;
@@ -87,27 +87,25 @@ export function SignupForm() {
       console.log("User signed out after registration.");
 
       toast({
-        title: "Account Created Successfully",
-        description: "Your account has been created. Please log in.",
+        title: "Compte Créé avec Succès",
+        description: "Votre compte a été créé. Veuillez vous connecter.",
       });
       form.reset();
       
-      // Navigate to the login page
-      router.push("/login");
+      router.push("/login")
 
     } catch (error: any) {
       console.error("Error signing up (outer catch):", error);
-      let errorMessage = "Failed to sign up. Please try again.";
+      let errorMessage = "Échec de l'inscription. Veuillez réessayer.";
       if (error.code === "auth/email-already-in-use") {
-        errorMessage = "This email address is already in use.";
+        errorMessage = "Cette adresse e-mail est déjà utilisée.";
       } else if (error.code === "firestore/permission-denied") {
-        errorMessage = "Failed to save user data. Please check Firestore rules."
+        errorMessage = "Échec de la sauvegarde des données utilisateur. Veuillez vérifier les règles Firestore."
       } else if (error.message && typeof error.message === 'string' && error.message.toLowerCase().includes("failed to fetch")) {
-        // If a Firebase operation itself failed with "Failed to fetch"
-        errorMessage = "A network error occurred during signup. Please check your connection and try again.";
+        errorMessage = "Une erreur réseau s'est produite lors de l'inscription. Veuillez vérifier votre connexion et réessayer.";
       }
       toast({
-        title: "Signup Failed",
+        title: "Échec de l'Inscription",
         description: errorMessage,
         variant: "destructive",
       });
@@ -122,17 +120,17 @@ export function SignupForm() {
           name="role"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Role</FormLabel>
+              <FormLabel>Rôle</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select your role" />
+                    <SelectValue placeholder="Sélectionnez votre rôle" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="Caregiver">Caregiver</SelectItem>
-                  <SelectItem value="Specialist">Specialist</SelectItem>
-                  <SelectItem value="Medical Doctor">Medical Doctor</SelectItem>
+                  <SelectItem value="Caregiver">Personnel Soignant (Caregiver)</SelectItem>
+                  <SelectItem value="Specialist">Spécialiste</SelectItem>
+                  <SelectItem value="Medical Doctor">Médecin</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -144,9 +142,9 @@ export function SignupForm() {
           name="career"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Career/Specialization</FormLabel>
+              <FormLabel>Carrière/Spécialisation</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., Pediatrician, Neonatal Nurse" {...field} />
+                <Input placeholder="e.g., Pédiatre, Infirmier Néonatal" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -157,9 +155,9 @@ export function SignupForm() {
           name="fullName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Full Name</FormLabel>
+              <FormLabel>Nom Complet</FormLabel>
               <FormControl>
-                <Input placeholder="Dr. Jane Doe" {...field} />
+                <Input placeholder="e.g., Dr. Amina Bello" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -170,9 +168,9 @@ export function SignupForm() {
           name="address"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Address</FormLabel>
+              <FormLabel>Adresse</FormLabel>
               <FormControl>
-                <Input placeholder="123 Main St, Anytown, USA" {...field} />
+                <Input placeholder="123 Rue Nlongkak, Yaoundé" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -183,9 +181,9 @@ export function SignupForm() {
           name="hospital"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Hospital/Affiliation</FormLabel>
+              <FormLabel>Hôpital/Affiliation</FormLabel>
               <FormControl>
-                <Input placeholder="City General Hospital" {...field} />
+                <Input placeholder="Hôpital Général de Douala" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -198,7 +196,7 @@ export function SignupForm() {
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input type="email" placeholder="you@example.com" {...field} />
+                <Input type="email" placeholder="vous@example.com" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -209,7 +207,7 @@ export function SignupForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Password</FormLabel>
+              <FormLabel>Mot de passe</FormLabel>
               <div className="relative">
                 <FormControl>
                   <Input
@@ -225,7 +223,7 @@ export function SignupForm() {
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setShowPassword(!showPassword); }}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                 >
                   {showPassword ? (
                     <EyeOff className="h-5 w-5" />
@@ -239,7 +237,7 @@ export function SignupForm() {
           )}
         />
         <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? "Signing up..." : <><Stethoscope className="mr-2 h-5 w-5" /> Sign Up</>}
+          {form.formState.isSubmitting ? "Inscription en cours..." : <><Stethoscope className="mr-2 h-5 w-5" /> S'inscrire</>}
         </Button>
       </form>
     </Form>

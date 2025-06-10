@@ -1,3 +1,4 @@
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -7,8 +8,8 @@ import { EmailButton } from '@/components/shared/EmailButton';
 
 // Mock data for requests
 const mockRequests = [
-  { id: 'req001', patientName: 'Baby Alice', patientId: 'pat001', requestingDoctor: 'Dr. Smith', requestDate: '2024-07-22', details: 'Review X-ray for possible hip dysplasia.', status: 'Pending', doctorEmail: 'dr.smith@example.com', specialistEmail: 'specialist@example.com' },
-  { id: 'req002', patientName: 'Infant Bob', patientId: 'pat002', requestingDoctor: 'Dr. Jones', requestDate: '2024-07-21', details: 'Second opinion on developmental screening results.', status: 'Reviewed', doctorEmail: 'dr.jones@example.com', specialistEmail: 'specialist@example.com' },
+  { id: 'req001', patientName: 'Bébé Amina', patientId: 'pat001', requestingDoctor: 'Dr. Talla', requestDate: '2024-07-22', details: 'Examen radiographie pour dysplasie de la hanche possible.', status: 'Pending', doctorEmail: 'dr.talla@example.cm', specialistEmail: 'specialiste@example.cm' },
+  { id: 'req002', patientName: 'Nourrisson Paul', patientId: 'pat002', requestingDoctor: 'Dr. Ngassa', requestDate: '2024-07-21', details: 'Deuxième avis sur les résultats du dépistage du développement.', status: 'Reviewed', doctorEmail: 'dr.ngassa@example.cm', specialistEmail: 'specialiste@example.cm' },
 ];
 
 export default function SpecialistDashboardPage() {
@@ -16,19 +17,19 @@ export default function SpecialistDashboardPage() {
     <div className="container mx-auto py-8 px-4">
        <div className="flex items-center gap-3 mb-6">
         <UserCheck className="h-8 w-8 text-primary" />
-        <h1 className="text-3xl font-headline">Specialist Portal</h1>
+        <h1 className="text-3xl font-headline">Portail Spécialiste</h1>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="shadow-xl">
           <CardHeader>
-            <CardTitle className="text-2xl font-headline flex items-center gap-2"><ListChecks className="w-6 h-6" /> Consultation Requests</CardTitle>
+            <CardTitle className="text-2xl font-headline flex items-center gap-2"><ListChecks className="w-6 h-6" /> Demandes de Consultation</CardTitle>
             <CardDescription className="font-body">
-              Review requests for feedback from doctors.
+              Examinez les demandes de feedback des médecins.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {mockRequests.length === 0 && <p className="text-muted-foreground">No active requests.</p>}
+            {mockRequests.length === 0 && <p className="text-muted-foreground">Aucune demande active.</p>}
             {mockRequests.map(request => (
               <Card key={request.id} className="bg-secondary/30">
                 <CardHeader>
@@ -36,11 +37,11 @@ export default function SpecialistDashboardPage() {
                     {request.patientName} (ID: {request.patientId})
                     <Badge variant={request.status === 'Pending' ? 'destructive' : 'default'}
                             className={request.status === 'Pending' ? 'bg-yellow-500 text-black' : 'bg-green-500 text-white'}>
-                        {request.status}
+                        {request.status === 'Pending' ? 'En attente' : 'Examiné'}
                     </Badge>
                   </CardTitle>
                   <CardDescription className="text-xs font-body">
-                    From: {request.requestingDoctor} | Date: {request.requestDate}
+                    De: {request.requestingDoctor} | Date: {request.requestDate}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -50,8 +51,8 @@ export default function SpecialistDashboardPage() {
                    <EmailButton 
                         senderEmail={request.specialistEmail} 
                         receiverEmail={request.doctorEmail}
-                        subject={`Feedback for Patient: ${request.patientName} (ID: ${request.patientId})`}
-                        buttonText="Reply to Doctor"
+                        subject={`Feedback pour Patient: ${request.patientName} (ID: ${request.patientId})`}
+                        buttonText="Répondre au Médecin"
                         buttonSize="sm"
                         icon={<Send className="mr-1 h-4 w-4" />}
                       />
@@ -63,15 +64,15 @@ export default function SpecialistDashboardPage() {
 
         <Card className="shadow-xl h-fit">
           <CardHeader>
-            <CardTitle className="text-2xl font-headline flex items-center gap-2"><MessageSquare className="w-6 h-6" /> Provide Feedback</CardTitle>
+            <CardTitle className="text-2xl font-headline flex items-center gap-2"><MessageSquare className="w-6 h-6" /> Fournir un Feedback</CardTitle>
             <CardDescription className="font-body">
-              Select a request and provide your expert feedback. (General Feedback Area)
+              Sélectionnez une demande et fournissez votre feedback d'expert. (Zone de Feedback Général)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Textarea placeholder="Type your feedback here for the selected patient case..." rows={8} className="font-body" />
+            <Textarea placeholder="Tapez votre feedback ici pour le cas patient sélectionné..." rows={8} className="font-body" />
             <Button className="w-full bg-accent text-accent-foreground hover:bg-accent/80">
-              <Send className="mr-2 h-4 w-4" /> Submit Feedback
+              <Send className="mr-2 h-4 w-4" /> Soumettre le Feedback
             </Button>
           </CardContent>
         </Card>

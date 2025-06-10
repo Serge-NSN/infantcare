@@ -15,21 +15,20 @@ import { db } from '@/lib/firebase';
 import { doc, getDoc, Timestamp } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// This interface is for data fetched from Firestore, which might include system fields
 interface PatientFirestoreData {
   id: string;
   patientName: string;
-  patientId: string; // System-generated patient record ID
-  hospitalId: string; // System-generated hospital ID
+  patientId: string; 
+  hospitalId: string; 
   patientAge: string;
   patientGender: "Male" | "Female" | "Other";
   patientAddress: string;
   patientPhoneNumber: string;
-  patientReligion?: string;
+  // patientReligion?: string; // Removed
   hospitalName: string;
   previousDiseases?: string;
   currentMedications?: string;
-  insuranceDetails?: string;
+  // insuranceDetails?: string; // Removed
   uploadedFileNames?: string[];
   registrationDateTime: Timestamp;
   feedbackStatus: string;
@@ -68,20 +67,17 @@ export default function EditPatientPage() {
             setError("You do not have permission to edit this patient.");
             setPatientDataForForm(null);
           } else {
-            // Transform Firestore data to the shape expected by PatientRegistrationForm
             const transformedData: PatientDataForForm = {
               id: patientDocSnap.id, 
               hospitalName: data.hospitalName,
-              hospitalId: data.hospitalId, // Pass existing hospitalId
+              hospitalId: data.hospitalId, 
               patientName: data.patientName,
               patientAge: data.patientAge,
               patientGender: data.patientGender,
               patientAddress: data.patientAddress,
               patientPhoneNumber: data.patientPhoneNumber,
-              patientReligion: data.patientReligion || "",
               previousDiseases: data.previousDiseases || "",
               currentMedications: data.currentMedications || "",
-              insuranceDetails: data.insuranceDetails || "",
               uploadedFileNames: data.uploadedFileNames || [],
             };
             setPatientDataForForm(transformedData);
@@ -112,7 +108,7 @@ export default function EditPatientPage() {
             <Skeleton className="h-5 w-3/4" />
           </CardHeader>
           <CardContent className="space-y-4">
-            {[...Array(6)].map((_, i) => (
+            {[...Array(5)].map((_, i) => ( // Reduced array items
               <div key={i} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />
@@ -181,5 +177,3 @@ export default function EditPatientPage() {
     </div>
   );
 }
-
-    

@@ -29,11 +29,11 @@ interface PatientData {
   patientGender: string;
   patientAddress: string;
   patientPhoneNumber: string;
-  patientReligion?: string;
+  // patientReligion?: string; // Removed
   hospitalName: string;
   previousDiseases?: string;
   currentMedications?: string;
-  insuranceDetails?: string;
+  // insuranceDetails?: string; // Removed
   uploadedFileNames?: string[]; // Caregiver uploaded files (assumed to be URLs now)
   registrationDateTime: Timestamp;
   feedbackStatus: string; 
@@ -175,7 +175,7 @@ export default function CaregiverPatientDetailPage() {
             <Skeleton className="h-6 w-1/2" />
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[...Array(8)].map((_, i) => (
+            {[...Array(6)].map((_, i) => ( // Reduced from 8 as 2 fields removed
               <div key={i} className="space-y-2">
                 <Skeleton className="h-5 w-1/3" />
                 <Skeleton className="h-5 w-2/3" />
@@ -301,7 +301,6 @@ export default function CaregiverPatientDetailPage() {
                 <CardTitle className="text-xl font-headline mb-3 flex items-center"><Info className="mr-2 h-5 w-5 text-primary" />Patient Demographics</CardTitle>
                 <DetailItem label="Address" value={patient.patientAddress} />
                 <DetailItem label="Phone Number (Guardian)" value={patient.patientPhoneNumber} />
-                <DetailItem label="Religion" value={patient.patientReligion} />
             </Card>
             
             <Card className="p-4 bg-secondary/30 md:col-span-2">
@@ -309,7 +308,6 @@ export default function CaregiverPatientDetailPage() {
                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
                     <DetailItem label="Previous Diseases" value={patient.previousDiseases} />
                     <DetailItem label="Current Medications" value={patient.currentMedications} />
-                    <DetailItem label="Insurance Details" value={patient.insuranceDetails} />
                 </div>
             </Card>
             
@@ -334,7 +332,7 @@ export default function CaregiverPatientDetailPage() {
                                 new URL(fileSrc); // Validate URL structure
                                 showActualImage = true;
                             } catch (e) {
-                                console.warn(`[Image Check] Malformed URL string in uploadedFileNames: ${fileSrc}`);
+                                // console.warn(`[Image Check] Malformed URL string in uploadedFileNames: ${fileSrc}`);
                             }
                         }
                       }
@@ -345,7 +343,7 @@ export default function CaregiverPatientDetailPage() {
                         {showActualImage && fileSrc ? (
                           <Image
                             src={fileSrc} 
-                            alt={fileNameFromUrl}
+                            alt={fileNameFromUrl || 'Uploaded image'}
                             width={150}
                             height={150}
                             className="rounded-md object-cover mb-1"

@@ -1,31 +1,32 @@
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { HelpCircle, ShieldQuestion } from 'lucide-react';
 
 const faqs = [
   {
-    question: "How do I register as a new user?",
-    answer: "Navigate to the 'Sign Up' page from the main menu. Fill in the required details, including your role (Caregiver, Specialist, or Medical Doctor), career information, full name, address, hospital affiliation, email, and create a password. Once submitted, your account will be created (mock functionality)."
+    question: "Comment puis-je m'inscrire en tant que nouvel utilisateur ?",
+    answer: "Accédez à la page 'S'inscrire' depuis le menu principal. Remplissez les informations requises, y compris votre rôle (Personnel Soignant, Spécialiste ou Médecin), informations de carrière, nom complet, adresse (e.g., '123 Rue Nlongkak, Yaoundé'), affiliation hospitalière, e-mail et créez un mot de passe. Une fois soumis, votre compte sera créé (fonctionnalité simulée)."
   },
   {
-    question: "How can I register a new patient (Caregiver)?",
-    answer: "Once logged in as a Caregiver, go to your dashboard. You will find a 'New Patient Registration' form. Fill in all the patient's details such as date and time of registration, hospital information, patient demographics, medical history, and insurance details. You can also upload relevant patient files."
+    question: "Comment puis-je enregistrer un nouveau patient (Personnel Soignant) ?",
+    answer: "Une fois connecté en tant que Personnel Soignant, accédez à votre tableau de bord. Vous y trouverez un formulaire 'Enregistrement Nouveau Patient'. Remplissez toutes les informations du patient telles que la date et l'heure d'enregistrement, les informations de l'hôpital, les données démographiques du patient, les antécédents médicaux. Vous pouvez également télécharger les fichiers pertinents du patient."
   },
   {
-    question: "How do Medical Doctors access patient lists and request tests?",
-    answer: "Medical Doctors, after logging in, will be directed to their portal. Here they can view a list of their assigned patients. Clicking on a patient will show detailed information. From the patient detail view or a dedicated section, doctors can request various tests like laboratory tests, screening tests, images, and grams for the selected patient."
+    question: "Comment les médecins accèdent-ils aux listes de patients et demandent-ils des tests ?",
+    answer: "Les médecins, après s'être connectés, seront dirigés vers leur portail. Ici, ils peuvent consulter une liste de leurs patients assignés. Cliquer sur un patient affichera des informations détaillées. Depuis la vue détaillée du patient ou une section dédiée, les médecins peuvent demander divers tests comme des tests de laboratoire, des tests de dépistage, des images et des graphiques pour le patient sélectionné."
   },
   {
-    question: "How does the Specialist Portal work?",
-    answer: "Specialists logging into their portal can view consultation requests sent by Medical Doctors. These requests will include patient case details. Specialists can review the information and provide their feedback or recommendations directly through the portal or by using the 'Email Doctor' functionality."
+    question: "Comment fonctionne le Portail Spécialiste ?",
+    answer: "Les spécialistes se connectant à leur portail peuvent consulter les demandes de consultation envoyées par les médecins. Ces demandes incluront les détails du cas du patient. Les spécialistes peuvent examiner les informations et fournir leurs commentaires ou recommandations directement via le portail ou en utilisant la fonctionnalité 'Envoyer un e-mail au médecin'."
   },
   {
-    question: "How does the AI-Assisted Autocomplete feature work?",
-    answer: "When filling out fields like 'Previous Diseases' or 'Current Medications' in forms (e.g., Patient Registration), as you start typing, our AI system will suggest likely medical terms based on established terminologies. This helps ensure accuracy and efficiency."
+    question: "Comment fonctionne la fonction de saisie semi-automatique assistée par IA ?",
+    answer: "Lorsque vous remplissez des champs tels que 'Antécédents Médicaux' ou 'Médicaments Actuels' dans les formulaires (par exemple, Enregistrement Patient), au fur et à mesure que vous tapez, notre système d'IA suggérera des termes médicaux probables basés sur des terminologies établies. Cela aide à garantir l'exactitude et l'efficacité."
   },
   {
-    question: "How do I use the 'Send Email' button?",
-    answer: "The 'Send Email' button, found in doctor and specialist portals, will redirect you to your default email client (like Gmail). It will attempt to pre-fill the recipient's email address and a subject line based on the context, making it easier to initiate communication."
+    question: "Comment utiliser le bouton 'Envoyer un e-mail' ?",
+    answer: "Le bouton 'Envoyer un e-mail', présent dans les portails des médecins et des spécialistes, vous redirigera vers votre client de messagerie par défaut (comme Gmail). Il tentera de pré-remplir l'adresse e-mail du destinataire et une ligne d'objet en fonction du contexte, facilitant ainsi l'initiation de la communication."
   }
 ];
 
@@ -34,16 +35,16 @@ export default function HelpPage() {
     <div className="container mx-auto py-12 px-4">
       <div className="flex items-center gap-3 mb-8">
         <HelpCircle className="h-10 w-10 text-primary" />
-        <h1 className="text-4xl font-headline">Help & FAQ</h1>
+        <h1 className="text-4xl font-headline">Aide & FAQ</h1>
       </div>
 
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-2xl font-headline flex items-center gap-2">
-            <ShieldQuestion className="w-7 h-7" />Frequently Asked Questions
+            <ShieldQuestion className="w-7 h-7" />Questions Fréquemment Posées
           </CardTitle>
           <CardDescription className="font-body">
-            Find answers to common questions about using InfantCare.
+            Trouvez des réponses aux questions courantes sur l'utilisation d'InfantCare.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -64,15 +65,15 @@ export default function HelpPage() {
 
        <Card className="mt-8 shadow-lg">
         <CardHeader>
-          <CardTitle className="text-2xl font-headline">Still Need Help?</CardTitle>
+          <CardTitle className="text-2xl font-headline">Besoin d'Aide Supplémentaire ?</CardTitle>
         </CardHeader>
         <CardContent className="font-body">
           <p>
-            If you can&apos;t find the answer to your question in our FAQ, please don&apos;t hesitate to
-            contact our support team. You can reach us via the <a href="/contact" className="text-primary hover:underline">Contact Page</a>.
+            Si vous ne trouvez pas la réponse à votre question dans notre FAQ, n'hésitez pas à
+            contacter notre équipe de support. Vous pouvez nous joindre via la <a href="/contact" className="text-primary hover:underline">Page de Contact</a>.
           </p>
           <p className="mt-2">
-            We are here to assist you in making the most of InfantCare.
+            Nous sommes là pour vous aider à tirer le meilleur parti d'InfantCare.
           </p>
         </CardContent>
       </Card>

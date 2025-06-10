@@ -26,8 +26,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { FilePlus2, Loader2 } from 'lucide-react';
 
 const testRequestSchema = z.object({
-  testName: z.string().min(3, 'Test name must be at least 3 characters.'),
-  reason: z.string().min(10, 'Reason must be at least 10 characters.'),
+  testName: z.string().min(3, 'Le nom du test doit comporter au moins 3 caractères.'),
+  reason: z.string().min(10, 'La raison doit comporter au moins 10 caractères.'),
 });
 
 type TestRequestFormValues = z.infer<typeof testRequestSchema>;
@@ -35,7 +35,7 @@ type TestRequestFormValues = z.infer<typeof testRequestSchema>;
 interface TestRequestDialogProps {
   patientId: string;
   patientName: string;
-  onTestRequested?: () => void; // Callback after successful request
+  onTestRequested?: () => void; 
 }
 
 export function TestRequestDialog({ patientId, patientName, onTestRequested }: TestRequestDialogProps) {
@@ -53,10 +53,9 @@ export function TestRequestDialog({ patientId, patientName, onTestRequested }: T
 
   const onSubmit = async (data: TestRequestFormValues) => {
     if (!currentUser) {
-      toast({ title: 'Error', description: 'You must be logged in.', variant: 'destructive' });
+      toast({ title: 'Erreur', description: 'Vous devez être connecté.', variant: 'destructive' });
       return;
     }
-    // react-hook-form handles isSubmitting state automatically
     try {
       const testRequestsCollectionRef = collection(db, 'patients', patientId, 'testRequests');
       await addDoc(testRequestsCollectionRef, {
@@ -68,13 +67,13 @@ export function TestRequestDialog({ patientId, patientName, onTestRequested }: T
         requestingDoctorName: currentUser.displayName || currentUser.email?.split('@')[0] || 'N/A',
         requestedAt: serverTimestamp(),
       });
-      toast({ title: 'Test Requested', description: `Request for ${data.testName} for ${patientName} submitted.` });
+      toast({ title: 'Test Demandé', description: `Demande pour ${data.testName} pour ${patientName} soumise.` });
       reset();
       setOpen(false);
       onTestRequested?.();
     } catch (error) {
       console.error('Error requesting test:', error);
-      toast({ title: 'Error', description: 'Failed to request test.', variant: 'destructive' });
+      toast({ title: 'Erreur', description: 'Échec de la demande de test.', variant: 'destructive' });
     }
   };
 
@@ -82,16 +81,16 @@ export function TestRequestDialog({ patientId, patientName, onTestRequested }: T
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline">
-          <FilePlus2 className="mr-2 h-4 w-4" /> Request New Test
+          <FilePlus2 className="mr-2 h-4 w-4" /> Demander un Nouveau Test
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FilePlus2 className="w-5 h-5 text-primary" /> Request Test for {patientName}
+            <FilePlus2 className="w-5 h-5 text-primary" /> Demander un Test pour {patientName}
           </DialogTitle>
           <DialogDescription>
-            Specify the test and reason for the request. The caregiver will be notified.
+            Spécifiez le test et la raison de la demande. Le personnel soignant sera notifié.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4 py-4">
@@ -101,8 +100,8 @@ export function TestRequestDialog({ patientId, patientName, onTestRequested }: T
               control={control}
               render={({ field }) => (
                 <>
-                  <Label htmlFor="testName">Test Name</Label>
-                  <Input id="testName" placeholder="e.g., Complete Blood Count, X-Ray Chest" {...field} />
+                  <Label htmlFor="testName">Nom du Test</Label>
+                  <Input id="testName" placeholder="e.g., Numération Formule Sanguine, Radio Thoracique" {...field} />
                   {errors.testName && <p className="text-xs text-destructive">{errors.testName.message}</p>}
                 </>
               )}
@@ -114,8 +113,8 @@ export function TestRequestDialog({ patientId, patientName, onTestRequested }: T
               control={control}
               render={({ field }) => (
                 <>
-                  <Label htmlFor="reason">Reason for Request</Label>
-                  <Textarea id="reason" placeholder="e.g., To investigate persistent cough, rule out infection" {...field} rows={3} />
+                  <Label htmlFor="reason">Raison de la Demande</Label>
+                  <Textarea id="reason" placeholder="e.g., Investigation toux persistante, exclure infection" {...field} rows={3} />
                   {errors.reason && <p className="text-xs text-destructive">{errors.reason.message}</p>}
                 </>
               )}
@@ -124,7 +123,7 @@ export function TestRequestDialog({ patientId, patientName, onTestRequested }: T
           <DialogFooter>
             <Button type="submit" disabled={isSubmitting} className="bg-accent text-accent-foreground hover:bg-accent/90">
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FilePlus2 className="mr-2 h-4 w-4" />}
-              {isSubmitting ? 'Submitting...' : 'Submit Request'}
+              {isSubmitting ? 'Soumission en cours...' : 'Soumettre la Demande'}
             </Button>
           </DialogFooter>
         </form>
