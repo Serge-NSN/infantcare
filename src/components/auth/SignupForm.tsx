@@ -92,16 +92,8 @@ export function SignupForm() {
       });
       form.reset();
       
-      // Attempt navigation and catch potential errors specifically from router.push
-      router.push("/login")
-        .catch(navigationError => {
-          console.error("Error during router.push('/login'):", navigationError);
-          toast({
-            title: "Navigation Error",
-            description: "Could not automatically redirect to the login page. Please try navigating manually.",
-            variant: "destructive",
-          });
-        });
+      // Navigate to the login page
+      router.push("/login");
 
     } catch (error: any) {
       console.error("Error signing up (outer catch):", error);
