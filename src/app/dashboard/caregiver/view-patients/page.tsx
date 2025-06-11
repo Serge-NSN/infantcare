@@ -1,4 +1,3 @@
-
 // src/app/dashboard/caregiver/view-patients/page.tsx
 "use client"; 
 
@@ -71,7 +70,8 @@ export default function ViewPatientsPage() {
   const getStatusBadgeVariant = (status: string) => {
     if (status === 'Pending Doctor Review') return 'destructive';
     if (status === 'Reviewed by Doctor') return 'secondary'; 
-    if (status === 'Specialist Feedback Provided') return 'default'; 
+    if (status === 'Pending Specialist Consultation') return 'outline';
+    if (status === 'Specialist Feedback Provided') return 'default';
     return 'outline';
   };
 
@@ -133,7 +133,7 @@ export default function ViewPatientsPage() {
                       <TableCell>{patient.patientId}</TableCell>
                       <TableCell>{patient.patientAge}</TableCell>
                       <TableCell>
-                        {patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleDateString() : 'N/A'}
+                        {patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleDateString('en-US') : 'N/A'}
                       </TableCell>
                       <TableCell>
                          <Badge variant={getStatusBadgeVariant(patient.feedbackStatus)}>
@@ -179,4 +179,6 @@ export default function ViewPatientsPage() {
     </div>
   );
 }
+    
+
     

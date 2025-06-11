@@ -1,11 +1,10 @@
-
 // src/app/dashboard/doctor/page.tsx
 "use client";
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
-import { BarChart3, AlertTriangle, ListFilter, Users, ClipboardCheck, Clock } from 'lucide-react';
+import { BarChart3, AlertTriangle, ListFilter, Users, ClipboardCheck, Clock, GraduationCap } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getCountFromServer } from 'firebase/firestore';
@@ -13,8 +12,9 @@ import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface DoctorDashboardStats {
-  awaitingReviewCount: number;
-  myReviewedCount: number;
+  awaitingReviewCount: number; // Patients with 'Pending Doctor Review' or 'Specialist Feedback Provided'
+  myReviewedCount: number; // Patients with 'Reviewed by Doctor' by this doctor
+  pendingSpecialistConsultationsCount: number; // Patients with 'Pending Specialist Consultation'
 }
 
 export default function DoctorDashboardPage() {
@@ -42,23 +42,33 @@ export default function DoctorDashboardPage() {
       try {
         const patientsCollectionRef = collection(db, 'patients');
 
-        // Count for patients awaiting any doctor's review
-        const awaitingReviewQuery = query(patientsCollectionRef, where('feedbackStatus', '==', 'Pending Doctor Review'));
+        const awaitingReviewQuery = query(
+            patientsCollectionRef, 
+            where('feedbackStatus', 'in', ['Pending Doctor Review', 'Specialist Feedback Provided'])
+        );
         const awaitingReviewSnapshot = await getCountFromServer(awaitingReviewQuery);
         const awaitingReviewCount = awaitingReviewSnapshot.data().count;
 
-        // Count for patients reviewed by the current doctor
         const myReviewedQuery = query(
             patientsCollectionRef,
-            where('doctorId', '==', currentUser.uid),
+            where('doctorId', '==', currentUser.uid), // Assuming doctorId is stored on patient when doctor gives feedback
             where('feedbackStatus', '==', 'Reviewed by Doctor')
         );
         const myReviewedSnapshot = await getCountFromServer(myReviewedQuery);
         const myReviewedCount = myReviewedSnapshot.data().count;
 
+        const pendingSpecialistQuery = query(
+            patientsCollectionRef,
+            where('feedbackStatus', '==', 'Pending Specialist Consultation')
+        );
+        const pendingSpecialistSnapshot = await getCountFromServer(pendingSpecialistQuery);
+        const pendingSpecialistConsultationsCount = pendingSpecialistSnapshot.data().count;
+
+
         setStats({
           awaitingReviewCount,
           myReviewedCount,
+          pendingSpecialistConsultationsCount,
         });
       } catch (err: any) {
         console.error("Error fetching doctor dashboard stats:", err);
@@ -66,7 +76,7 @@ export default function DoctorDashboardPage() {
          if (err.code === "unavailable" || err.message?.includes("client is offline")) {
           specificError = "Could not load statistics: Database is offline. Please check your internet connection.";
         } else if (err.code === "failed-precondition") {
-          specificError = "Could not load statistics: This often indicates a missing database index. Please check your browser's developer console for a link to create the necessary Firestore indexes. For 'My Reviewed Patients', an index on 'patients' collection for fields: doctorId (ASC) and feedbackStatus (ASC) might be needed. For 'Awaiting Review', an index for feedbackStatus (ASC) might be needed.";
+          specificError = "Could not load statistics: This often indicates a missing database index. Please check your browser's developer console for a link to create the necessary Firestore indexes. For 'My Reviewed Patients', an index on 'patients' collection for fields: doctorId (ASC) and feedbackStatus (ASC) might be needed. For 'Awaiting Review' and 'Pending Specialist Consultation', an index for feedbackStatus (ASC) might be needed.";
         }
         setError(specificError);
       } finally {
@@ -81,7 +91,8 @@ export default function DoctorDashboardPage() {
     return (
       <div className="container mx-auto py-8 px-4">
         <Skeleton className="h-10 w-1/3 mb-6" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <Skeleton className="h-32 w-full" />
             <Skeleton className="h-32 w-full" />
             <Skeleton className="h-32 w-full" />
         </div>
@@ -112,14 +123,14 @@ export default function DoctorDashboardPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="text-xl font-headline flex items-center justify-between">
-              Patients Awaiting Review
+              Patients Requiring Action
               <Clock className="h-6 w-6 text-muted-foreground" />
             </CardTitle>
-            <CardDescription>Global count of patients pending initial doctor review.</CardDescription>
+            <CardDescription>Cases pending your review or specialist feedback received.</CardDescription>
           </CardHeader>
           <CardContent>
             {loadingStats ? (
@@ -130,6 +141,23 @@ export default function DoctorDashboardPage() {
           </CardContent>
         </Card>
 
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-xl font-headline flex items-center justify-between">
+              Pending Specialist Consult.
+              <GraduationCap className="h-6 w-6 text-muted-foreground" />
+            </CardTitle>
+            <CardDescription>Patients awaiting feedback from specialists.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingStats ? (
+              <Skeleton className="h-10 w-1/4" />
+            ) : (
+              <p className="text-4xl font-bold">{stats?.pendingSpecialistConsultationsCount ?? 0}</p>
+            )}
+          </CardContent>
+        </Card>
+        
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="text-xl font-headline flex items-center justify-between">
@@ -146,6 +174,7 @@ export default function DoctorDashboardPage() {
             )}
           </CardContent>
         </Card>
+
       </div>
 
       <Card className="shadow-xl">
@@ -160,7 +189,7 @@ export default function DoctorDashboardPage() {
         <CardContent className="flex flex-col sm:flex-row gap-4">
           <Button asChild variant="default" size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90">
             <Link href="/dashboard/doctor/awaiting-review">
-              <ListFilter className="mr-2 h-5 w-5" /> View Patients Awaiting Review
+              <ListFilter className="mr-2 h-5 w-5" /> View Patients Requiring Action
             </Link>
           </Button>
           <Button asChild variant="outline" size="lg">
@@ -173,3 +202,5 @@ export default function DoctorDashboardPage() {
     </div>
   );
 }
+
+    

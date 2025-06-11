@@ -1,4 +1,3 @@
-
 // src/app/dashboard/doctor/view-all-patients/page.tsx
 "use client";
 
@@ -41,8 +40,6 @@ export default function DoctorViewAllPatientsPage() {
       setError(null);
       try {
         const patientsCollectionRef = collection(db, 'patients');
-        // Doctors can read all patients as per current rules, order by registration.
-        // Consider pagination for large datasets in a real app.
         const q = query(patientsCollectionRef, orderBy('registrationDateTime', 'desc'));
 
         const querySnapshot = await getDocs(q);
@@ -78,6 +75,7 @@ export default function DoctorViewAllPatientsPage() {
   const getStatusBadgeVariant = (status: string) => {
     if (status === 'Pending Doctor Review') return 'destructive';
     if (status === 'Reviewed by Doctor') return 'secondary';
+    if (status === 'Pending Specialist Consultation') return 'outline';
     if (status === 'Specialist Feedback Provided') return 'default';
     return 'outline';
   };
@@ -133,7 +131,7 @@ export default function DoctorViewAllPatientsPage() {
                   <TableRow key={patient.id}>
                     <TableCell className="font-medium">{patient.patientName}</TableCell>
                     <TableCell>{patient.patientAge}</TableCell>
-                    <TableCell>{patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleDateString() : 'N/A'}</TableCell>
+                    <TableCell>{patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleDateString('en-US') : 'N/A'}</TableCell>
                     <TableCell>
                       <Badge variant={getStatusBadgeVariant(patient.feedbackStatus)}>
                         {patient.feedbackStatus}
@@ -154,3 +152,5 @@ export default function DoctorViewAllPatientsPage() {
     </div>
   );
 }
+
+    

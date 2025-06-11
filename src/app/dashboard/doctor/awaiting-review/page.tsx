@@ -1,4 +1,3 @@
-
 // src/app/dashboard/doctor/awaiting-review/page.tsx
 "use client";
 
@@ -43,8 +42,8 @@ export default function DoctorAwaitingReviewPage() {
         const patientsCollectionRef = collection(db, 'patients');
         const q = query(
           patientsCollectionRef,
-          where('feedbackStatus', '==', 'Pending Doctor Review'),
-          orderBy('registrationDateTime', 'desc')
+          where('feedbackStatus', 'in', ['Pending Doctor Review', 'Specialist Feedback Provided']), // Doctors need to act on these
+          orderBy('registrationDateTime', 'desc') // Or sort by a 'lastActionRequiredAt' timestamp
         );
 
         const querySnapshot = await getDocs(q);
@@ -65,7 +64,7 @@ export default function DoctorAwaitingReviewPage() {
         if (err.code === "unavailable" || err.message?.includes("client is offline")) {
           specificError = "Could not load patients: Database is offline. Please check your internet connection.";
         } else if (err.code === "failed-precondition") {
-          specificError = "Could not load patients: This most likely means a required Firestore index is missing. Please check your browser's developer console for a link to create the index in your Firebase project, or create it manually in Firestore. The index should be on the 'patients' collection, with fields: feedbackStatus (Ascending) AND registrationDateTime (Descending).";
+          specificError = "Could not load patients: This most likely means a required Firestore index is missing. Please check your browser's developer console for a link to create the index in your Firebase project, or create it manually in Firestore. The index should be on the 'patients' collection, for 'feedbackStatus' (IN operator might need multiple single-field indexes or a composite one like feedbackStatus ASC, registrationDateTime DESC).";
         } else if (err.code === "permission-denied") {
             specificError = "Could not load patients: Permission denied. Please check your Firestore security rules.";
         }
@@ -77,6 +76,12 @@ export default function DoctorAwaitingReviewPage() {
     fetchPatientsForReview();
   }, [currentUser, authLoading]);
 
+  const getStatusBadgeVariant = (status: string) => {
+    if (status === 'Pending Doctor Review') return 'destructive';
+    if (status === 'Specialist Feedback Provided') return 'default'; // e.g. purple
+    return 'outline';
+  };
+
   return (
     <div className="container mx-auto py-8 px-4">
       <Button asChild variant="outline" className="mb-6">
@@ -86,14 +91,14 @@ export default function DoctorAwaitingReviewPage() {
       </Button>
       <div className="flex items-center gap-3 mb-6">
         <ListFilter className="h-8 w-8 text-primary" />
-        <h1 className="text-3xl font-headline">Patients Awaiting Review</h1>
+        <h1 className="text-3xl font-headline">Patients Requiring Your Action</h1>
       </div>
 
       <Card className="shadow-xl">
         <CardHeader>
           <CardTitle className="text-2xl font-headline">Pending Cases</CardTitle>
           <CardDescription className="font-body">
-            List of patients whose information requires your medical feedback.
+            List of patients whose information requires your medical feedback or review of specialist consultation.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -111,7 +116,7 @@ export default function DoctorAwaitingReviewPage() {
               </CardDescription>
             </Card>
           ) : patients.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">No patients currently awaiting review.</p>
+            <p className="text-muted-foreground text-center py-4">No patients currently requiring your action.</p>
           ) : (
             <Table>
               <TableHeader>
@@ -128,9 +133,9 @@ export default function DoctorAwaitingReviewPage() {
                   <TableRow key={patient.id}>
                     <TableCell className="font-medium">{patient.patientName}</TableCell>
                     <TableCell>{patient.patientAge}</TableCell>
-                    <TableCell>{patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleDateString() : 'N/A'}</TableCell>
+                    <TableCell>{patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleDateString('en-US') : 'N/A'}</TableCell>
                     <TableCell>
-                      <Badge variant={'destructive'}>
+                      <Badge variant={getStatusBadgeVariant(patient.feedbackStatus)}>
                         {patient.feedbackStatus}
                       </Badge>
                     </TableCell>
@@ -149,3 +154,5 @@ export default function DoctorAwaitingReviewPage() {
     </div>
   );
 }
+
+    

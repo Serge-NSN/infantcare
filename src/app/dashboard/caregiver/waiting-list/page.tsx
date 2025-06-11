@@ -1,4 +1,3 @@
-
 // src/app/dashboard/caregiver/waiting-list/page.tsx
 "use client";
 
@@ -20,6 +19,7 @@ interface Patient {
   patientId: string; 
   patientAge: string;
   registrationDateTime: Timestamp;
+  feedbackStatus: string; // To display the specific status
 }
 
 export default function WaitingListPage() {
@@ -41,7 +41,7 @@ export default function WaitingListPage() {
         const q = query(
           patientsCollectionRef, 
           where('caregiverUid', '==', currentUser.uid),
-          where('feedbackStatus', '==', 'Pending Doctor Review')
+          where('feedbackStatus', 'in', ['Pending Doctor Review', 'Pending Specialist Consultation', 'Specialist Feedback Provided']) // Include all "waiting" states for doctor
         );
         const querySnapshot = await getDocs(q);
         const fetchedPatients: Patient[] = querySnapshot.docs.map(doc => {
@@ -52,7 +52,14 @@ export default function WaitingListPage() {
             patientId: data.patientId,
             patientAge: data.patientAge,
             registrationDateTime: data.registrationDateTime,
+            feedbackStatus: data.feedbackStatus,
           } as Patient;
+        });
+        // Sort so "Pending Doctor Review" comes first, then others
+        fetchedPatients.sort((a, b) => {
+            if (a.feedbackStatus === 'Pending Doctor Review' && b.feedbackStatus !== 'Pending Doctor Review') return -1;
+            if (a.feedbackStatus !== 'Pending Doctor Review' && b.feedbackStatus === 'Pending Doctor Review') return 1;
+            return (b.registrationDateTime?.toMillis() || 0) - (a.registrationDateTime?.toMillis() || 0); // Secondary sort by date
         });
         setPatients(fetchedPatients);
       } catch (err: any) {
@@ -69,6 +76,13 @@ export default function WaitingListPage() {
     fetchWaitingListPatients();
   }, [currentUser]);
 
+  const getStatusBadgeVariant = (status: string) => {
+    if (status === 'Pending Doctor Review') return 'destructive';
+    if (status === 'Pending Specialist Consultation') return 'outline';
+    if (status === 'Specialist Feedback Provided') return 'default';
+    return 'outline';
+  };
+
   return (
     <div className="container mx-auto py-8 px-4">
       <Button asChild variant="outline" className="mb-6">
@@ -82,9 +96,9 @@ export default function WaitingListPage() {
       </div>
       <Card className="shadow-xl">
         <CardHeader>
-          <CardTitle className="text-2xl font-headline">Patients Pending Doctor Review</CardTitle>
+          <CardTitle className="text-2xl font-headline">Patients Awaiting Doctor/Specialist Action</CardTitle>
           <CardDescription>
-            These patients are awaiting initial review or feedback from a medical doctor.
+            These patients are awaiting review or feedback from a medical doctor or specialist.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -125,10 +139,10 @@ export default function WaitingListPage() {
                     <TableCell>{patient.patientId}</TableCell>
                     <TableCell>{patient.patientAge}</TableCell>
                     <TableCell>
-                      {patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleDateString() : 'N/A'}
+                      {patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleDateString('en-US') : 'N/A'}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="destructive">Pending Doctor Review</Badge>
+                      <Badge variant={getStatusBadgeVariant(patient.feedbackStatus)}>{patient.feedbackStatus}</Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <Button variant="outline" size="sm" asChild>
@@ -148,3 +162,4 @@ export default function WaitingListPage() {
   );
 }
 
+    

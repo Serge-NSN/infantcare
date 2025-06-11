@@ -1,4 +1,3 @@
-
 // src/app/dashboard/doctor/patient/[id]/page.tsx
 "use client";
 
@@ -6,13 +5,13 @@ import * as React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowLeft, UserCircle, Stethoscope, FlaskConical, FileScan, Activity, MailIcon, Info, CalendarDays, FileText as FileIcon, MessageSquare, AlertTriangle, Fingerprint, Send, Microscope, Hospital, PlusCircle, Loader2, UserCheck, Download } from "lucide-react";
+import { ArrowLeft, UserCircle, Stethoscope, FlaskConical, FileScan, Activity, MailIcon, Info, CalendarDays, FileText as FileIcon, MessageSquare, AlertTriangle, Fingerprint, Send, Microscope, Hospital, PlusCircle, Loader2, UserCheck, Download, MessageCircleQuestion, GraduationCap, ListChecks } from "lucide-react";
 import Image from "next/image";
 import { EmailButton } from '@/components/shared/EmailButton';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, updateDoc, Timestamp, serverTimestamp, collection, addDoc, query, orderBy, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, Timestamp, serverTimestamp, collection, addDoc, query, orderBy, onSnapshot, Unsubscribe, writeBatch } from 'firebase/firestore';
 import { useEffect, useState, useCallback } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
@@ -23,6 +22,8 @@ import { FeedbackList, type FeedbackItem } from '@/components/dashboard/shared/F
 import { TestRequestDialog } from '@/components/dashboard/doctor/TestRequestDialog';
 import { TestRequestList, type TestRequestItem } from '@/components/dashboard/shared/TestRequestList';
 import { generatePatientPdf } from '@/lib/utils/generatePatientPdf';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 
 interface PatientData {
@@ -37,7 +38,7 @@ interface PatientData {
   hospitalName: string;
   previousDiseases?: string;
   currentMedications?: string;
-  uploadedFileNames?: string[]; // Assumed to be URLs now
+  uploadedFileNames?: string[]; 
   registrationDateTime: Timestamp;
   feedbackStatus: string; 
   caregiverUid: string;
@@ -48,6 +49,110 @@ interface CaregiverProfile {
   email?: string;
   fullName?: string;
 }
+
+export interface SpecialistConsultationRequest {
+    id: string; 
+    patientId: string;
+    patientName: string; 
+    requestingDoctorId: string;
+    requestingDoctorName: string;
+    requestDetails: string;
+    status: 'Pending Specialist Review' | 'Feedback Provided by Specialist' | 'Archived';
+    requestedAt: Timestamp;
+    specialistId?: string; 
+    specialistName?: string;
+    specialistFeedback?: string;
+    feedbackProvidedAt?: Timestamp;
+}
+
+interface RequestConsultationDialogProps {
+  patientId: string;
+  patientName: string;
+  onConsultationRequested: () => void;
+}
+
+function RequestConsultationDialog({ patientId, patientName, onConsultationRequested }: RequestConsultationDialogProps) {
+  const [open, setOpen] = useState(false);
+  const [requestDetails, setRequestDetails] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { currentUser } = useAuth();
+  const { toast } = useToast();
+
+  const handleSubmit = async () => {
+    if (!currentUser || !requestDetails.trim()) {
+      toast({ title: "Error", description: "Consultation details cannot be empty.", variant: "destructive" });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const consultationData = {
+        patientId,
+        patientName, // Denormalize for easier display for specialist
+        requestingDoctorId: currentUser.uid,
+        requestingDoctorName: currentUser.displayName || currentUser.email?.split('@')[0] || 'N/A',
+        requestDetails: requestDetails.trim(),
+        status: 'Pending Specialist Review',
+        requestedAt: serverTimestamp(),
+      };
+      
+      const batch = writeBatch(db);
+
+      const consultationRef = doc(collection(db, "patients", patientId, "specialistConsultations"));
+      batch.set(consultationRef, consultationData);
+
+      const patientDocRef = doc(db, "patients", patientId);
+      batch.update(patientDocRef, { feedbackStatus: 'Pending Specialist Consultation' });
+      
+      await batch.commit();
+
+      toast({ title: "Consultation Requested", description: `Specialist consultation requested for ${patientName}.` });
+      setRequestDetails('');
+      setOpen(false);
+      onConsultationRequested();
+    } catch (error) {
+      console.error("Error requesting specialist consultation:", error);
+      toast({ title: "Request Failed", description: "Could not request consultation. Please try again.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline"><MessageCircleQuestion className="mr-2 h-4 w-4" /> Request Specialist Consultation</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Request Specialist Consultation for {patientName}</DialogTitle>
+          <DialogDescription>
+            Clearly describe the reason for consultation and what specific advice you are seeking from the specialist.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor="consultationDetails">Consultation Details</Label>
+            <Textarea
+              id="consultationDetails"
+              value={requestDetails}
+              onChange={(e) => setRequestDetails(e.target.value)}
+              placeholder="e.g., Patient presents with X, Y, Z. Seeking opinion on differential diagnosis for A, B, C and recommended advanced tests..."
+              rows={5}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting || !requestDetails.trim()} className="bg-accent text-accent-foreground">
+            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Send className="mr-2 h-4 w-4"/>}
+            {isSubmitting ? 'Submitting...' : 'Submit Request'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 export default function DoctorPatientDetailPage() {
   const params = useParams();
@@ -68,6 +173,9 @@ export default function DoctorPatientDetailPage() {
 
   const [testRequests, setTestRequests] = useState<TestRequestItem[]>([]);
   const [loadingTestRequests, setLoadingTestRequests] = useState(true);
+  const [specialistConsultations, setSpecialistConsultations] = useState<SpecialistConsultationRequest[]>([]);
+  const [loadingSpecialistConsultations, setLoadingSpecialistConsultations] = useState(true);
+  
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const fetchPatientData = useCallback(async () => {
@@ -106,8 +214,6 @@ export default function DoctorPatientDetailPage() {
         specificError = "Could not connect to the database to read patient data.";
       }
       setError(specificError);
-      console.error("Fetch Patient - Error code:", err.code);
-      console.error("Fetch Patient - Error message:", err.message);
     } finally {
       setLoadingPatient(false);
     }
@@ -120,37 +226,39 @@ export default function DoctorPatientDetailPage() {
   }, [authLoading, fetchPatientData]);
 
   useEffect(() => {
-    let unsubscribeFeedbacks: Unsubscribe | undefined;
-    let unsubscribeTestRequests: Unsubscribe | undefined;
+    let unsubFeedbacks: Unsubscribe | undefined;
+    let unsubTestRequests: Unsubscribe | undefined;
+    let unsubSpecialistConsultations: Unsubscribe | undefined;
 
     if (patientDocId && currentUser) {
+      // Doctor's Feedback
       setLoadingFeedbacks(true);
       const feedbacksQuery = query(collection(db, "patients", patientDocId, "patientFeedbacks"), orderBy("createdAt", "desc"));
-      unsubscribeFeedbacks = onSnapshot(feedbacksQuery, (snapshot) => {
-        const fetchedFeedbacks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FeedbackItem));
-        setFeedbacks(fetchedFeedbacks);
+      unsubFeedbacks = onSnapshot(feedbacksQuery, (snapshot) => {
+        setFeedbacks(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as FeedbackItem)));
         setLoadingFeedbacks(false);
-      }, (error) => {
-        console.error("Error fetching feedbacks:", error);
-        toast({ title: "Error loading feedback history", description: error.message, variant: "destructive" });
-        setLoadingFeedbacks(false);
-      });
+      }, (err) => { console.error("Feedback fetch error:", err); setLoadingFeedbacks(false); });
 
+      // Test Requests
       setLoadingTestRequests(true);
       const testRequestsQuery = query(collection(db, "patients", patientDocId, "testRequests"), orderBy("requestedAt", "desc"));
-      unsubscribeTestRequests = onSnapshot(testRequestsQuery, (snapshot) => {
-        const fetchedTestRequests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TestRequestItem));
-        setTestRequests(fetchedTestRequests);
+      unsubTestRequests = onSnapshot(testRequestsQuery, (snapshot) => {
+        setTestRequests(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as TestRequestItem)));
         setLoadingTestRequests(false);
-      }, (error) => {
-        console.error("Error fetching test requests:", error);
-        toast({ title: "Error loading test requests", description: error.message, variant: "destructive" });
-        setLoadingTestRequests(false);
-      });
+      }, (err) => { console.error("Test request fetch error:", err); setLoadingTestRequests(false); });
+      
+      // Specialist Consultations
+      setLoadingSpecialistConsultations(true);
+      const specialistConsultationsQuery = query(collection(db, "patients", patientDocId, "specialistConsultations"), orderBy("requestedAt", "desc"));
+      unsubSpecialistConsultations = onSnapshot(specialistConsultationsQuery, (snapshot) => {
+        setSpecialistConsultations(snapshot.docs.map(d => ({ id: d.id, ...d.data()} as SpecialistConsultationRequest)));
+        setLoadingSpecialistConsultations(false);
+      }, (err) => { console.error("Specialist consultation fetch error:", err); setLoadingSpecialistConsultations(false); });
     }
     return () => {
-      if (unsubscribeFeedbacks) unsubscribeFeedbacks();
-      if (unsubscribeTestRequests) unsubscribeTestRequests();
+      if (unsubFeedbacks) unsubFeedbacks();
+      if (unsubTestRequests) unsubTestRequests();
+      if (unsubSpecialistConsultations) unsubSpecialistConsultations();
     };
   }, [patientDocId, currentUser, toast]);
 
@@ -171,18 +279,22 @@ export default function DoctorPatientDetailPage() {
     };
     
     try {
+      const batchWrite = writeBatch(db);
       const feedbacksCollectionRef = collection(db, "patients", patient.id, "patientFeedbacks");
-      await addDoc(feedbacksCollectionRef, feedbackData);
+      const newFeedbackRef = doc(feedbacksCollectionRef); // Auto-generate ID
+      batchWrite.set(newFeedbackRef, feedbackData);
 
       const patientDocRef = doc(db, "patients", patient.id);
-      await updateDoc(patientDocRef, { 
+      batchWrite.update(patientDocRef, { 
         feedbackStatus: 'Reviewed by Doctor', 
         lastFeedbackAt: serverTimestamp()
       });
-
+      
+      await batchWrite.commit();
 
       toast({ title: "Feedback Added", description: "Your feedback has been recorded." });
       setNewFeedbackText(''); 
+      fetchPatientData(); // Re-fetch patient to update status display
     } catch (err: any) {
       console.error("Error submitting feedback (raw):", err);
       let description = "Could not submit feedback. Please try again.";
@@ -196,11 +308,18 @@ export default function DoctorPatientDetailPage() {
   };
   
   const getStatusBadgeVariant = (status: string) => {
-    const hasFeedback = feedbacks.length > 0;
-    if (status === 'Pending Doctor Review' && !hasFeedback) return 'destructive';
-    if (hasFeedback || status === 'Reviewed by Doctor') return 'secondary'; 
+    if (status === 'Pending Doctor Review') return 'destructive';
+    if (status === 'Reviewed by Doctor') return 'secondary'; 
+    if (status === 'Pending Specialist Consultation') return 'outline'; // Use a different color, e.g., orange/yellow
+    if (status === 'Specialist Feedback Provided') return 'default'; // e.g., purple or similar
     return 'outline';
   };
+  
+  const getSpecialistConsultationStatusColor = (status: SpecialistConsultationRequest['status']) => {
+    if (status === 'Pending Specialist Review') return 'text-yellow-600';
+    if (status === 'Feedback Provided by Specialist') return 'text-green-600';
+    return 'text-muted-foreground';
+  }
 
   const DetailItem = ({ label, value, icon: IconComponent }: { label: string; value?: string | string[] | null; icon?: React.ElementType }) => (
     <div className="mb-3">
@@ -227,6 +346,8 @@ export default function DoctorPatientDetailPage() {
     }
     setIsGeneratingPdf(true);
     try {
+      // For PDF, we might want to pass specialist consultations too.
+      // The generatePatientPdf function needs to be updated to handle this.
       await generatePatientPdf(patient, feedbacks, testRequests, {
         displayName: currentUser.displayName,
         email: currentUser.email,
@@ -240,7 +361,6 @@ export default function DoctorPatientDetailPage() {
     }
   };
 
-
   const overallLoading = authLoading || loadingPatient;
 
   if (overallLoading) {
@@ -251,7 +371,7 @@ export default function DoctorPatientDetailPage() {
             <Card className="lg:col-span-2 shadow-xl">
                  <CardHeader><Skeleton className="h-20 w-full" /></CardHeader>
                  <CardContent className="space-y-4">
-                    {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
+                    {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
                  </CardContent>
             </Card>
             <Card className="shadow-xl h-fit">
@@ -324,7 +444,7 @@ export default function DoctorPatientDetailPage() {
                             </CardDescription>
                             <div className="mt-2">
                                 <Badge variant={getStatusBadgeVariant(patient.feedbackStatus)} className="text-sm px-3 py-1">
-                                    {feedbacks.length > 0 ? `${feedbacks.length} Feedback entr${feedbacks.length === 1 ? 'y' : 'ies'}` : patient.feedbackStatus}
+                                    {patient.feedbackStatus}
                                 </Badge>
                             </div>
                         </div>
@@ -385,12 +505,7 @@ export default function DoctorPatientDetailPage() {
                             showActualImage = true;
                           } else if (fileSrc.startsWith('http://') || fileSrc.startsWith('https://')) {
                              if ((/\.(jpe?g|png|gif|webp)(\?|$)/i.test(fileSrc) || fileSrc.includes('cloudinary'))) {
-                                try {
-                                    new URL(fileSrc); 
-                                    showActualImage = true;
-                                } catch (e) {
-                                    // console.warn(`[Image Check] Malformed URL string in uploadedFileNames: ${fileSrc}`);
-                                }
+                                try { new URL(fileSrc); showActualImage = true; } catch (e) {}
                             }
                           }
                         }
@@ -398,31 +513,11 @@ export default function DoctorPatientDetailPage() {
                         return (
                           <div key={index} className="flex flex-col items-center text-center p-2 border rounded-md bg-background shadow-sm">
                             {showActualImage && fileSrc ? ( 
-                              <Image
-                                src={fileSrc} 
-                                alt={fileNameFromUrl || 'Uploaded image'}
-                                width={150}
-                                height={150}
-                                className="rounded-md object-cover mb-1"
-                                data-ai-hint="medical scan"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = 'https://placehold.co/150x150.png?text=Error';
-                                  (e.target as HTMLImageElement).alt = 'Error loading image';
-                                }}
-                              />
+                              <Image src={fileSrc} alt={fileNameFromUrl || 'Uploaded image'} width={150} height={150} className="rounded-md object-cover mb-1" data-ai-hint="medical scan" onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/150x150.png?text=Error'; (e.target as HTMLImageElement).alt = 'Error loading image';}} />
                             ) : (
-                              <div className="w-[150px] h-[150px] bg-muted rounded-md flex items-center justify-center mb-1">
-                                <FileIcon className="h-16 w-16 text-muted-foreground" />
-                              </div>
+                              <div className="w-[150px] h-[150px] bg-muted rounded-md flex items-center justify-center mb-1"><FileIcon className="h-16 w-16 text-muted-foreground" /></div>
                             )}
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <p className="text-xs text-foreground truncate w-full max-w-[140px]">{fileNameFromUrl}</p>
-                                </TooltipTrigger>
-                                <TooltipContent><p>{fileNameFromUrl}</p></TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
+                            <TooltipProvider><Tooltip><TooltipTrigger asChild><p className="text-xs text-foreground truncate w-full max-w-[140px]">{fileNameFromUrl}</p></TooltipTrigger><TooltipContent><p>{fileNameFromUrl}</p></TooltipContent></Tooltip></TooltipProvider>
                           </div>
                         );
                       })}
@@ -432,9 +527,51 @@ export default function DoctorPatientDetailPage() {
                   )}
                 </Card>
 
-                 <FeedbackList feedbacks={feedbacks} isLoading={loadingFeedbacks} title="Patient Feedback History" />
+                 <FeedbackList feedbacks={feedbacks} isLoading={loadingFeedbacks} title="Your Feedback History" />
                  <TestRequestList requests={testRequests} isLoading={loadingTestRequests} title="Test Request History" userRole="doctor" />
                  
+                 {/* Specialist Consultations Section */}
+                <Card className="shadow-md">
+                    <CardHeader>
+                        <CardTitle className="text-xl font-headline flex items-center gap-2">
+                        <GraduationCap className="w-5 h-5 text-purple-600" /> Specialist Consultations
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {loadingSpecialistConsultations ? (
+                            <Skeleton className="h-16 w-full" />
+                        ) : specialistConsultations.length === 0 ? (
+                            <p className="text-sm text-muted-foreground italic">No specialist consultations requested for this patient yet.</p>
+                        ) : (
+                        specialistConsultations.map(consult => (
+                            <Card key={consult.id} className="bg-purple-500/10 border-purple-500/30">
+                                <CardHeader>
+                                    <div className="flex justify-between items-start">
+                                        <CardTitle className="text-md font-semibold">
+                                            Consultation requested on: {consult.requestedAt?.toDate ? new Date(consult.requestedAt.toDate()).toLocaleDateString() : 'N/A'}
+                                        </CardTitle>
+                                        <Badge variant={consult.status === 'Pending Specialist Review' ? 'outline' : 'default'} className={getSpecialistConsultationStatusColor(consult.status)}>
+                                            {consult.status}
+                                        </Badge>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="space-y-2 text-sm">
+                                    <div>
+                                        <p className="font-medium text-muted-foreground">Your Request Details:</p>
+                                        <p className="whitespace-pre-wrap p-2 border rounded-md bg-background">{consult.requestDetails}</p>
+                                    </div>
+                                    {consult.status === 'Feedback Provided by Specialist' && (
+                                    <div>
+                                        <p className="font-medium text-muted-foreground">Specialist (Dr. {consult.specialistName || 'N/A'}) Feedback ({consult.feedbackProvidedAt?.toDate ? new Date(consult.feedbackProvidedAt.toDate()).toLocaleDateString() : 'N/A'}):</p>
+                                        <p className="whitespace-pre-wrap p-2 border rounded-md bg-background text-green-700">{consult.specialistFeedback}</p>
+                                    </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        )))}
+                    </CardContent>
+                </Card>
+
               </CardContent>
             </Card>
         </div>
@@ -443,7 +580,7 @@ export default function DoctorPatientDetailPage() {
             <Card className="shadow-xl">
                 <CardHeader>
                     <CardTitle className="text-xl font-headline flex items-center gap-2"><MessageSquare className="w-5 h-5"/>Add New Feedback</CardTitle>
-                    <CardDescription>Enter your diagnosis, notes, or recommendations for this patient.</CardDescription>
+                    <CardDescription>Enter your diagnosis, notes, or recommendations for this patient. This will be visible to the caregiver.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                     <Textarea
@@ -460,7 +597,7 @@ export default function DoctorPatientDetailPage() {
                         className="w-full bg-accent text-accent-foreground hover:bg-accent/80"
                     >
                         {isSubmittingFeedback ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-                        {isSubmittingFeedback ? 'Submitting...' : 'Add Feedback'}
+                        {isSubmittingFeedback ? 'Submitting...' : 'Add Feedback & Update Status'}
                     </Button>
                 </CardContent>
             </Card>
@@ -473,18 +610,40 @@ export default function DoctorPatientDetailPage() {
                     <TestRequestDialog 
                         patientId={patient.id} 
                         patientName={patient.patientName}
-                        onTestRequested={() => { /* Optionally refresh list or give feedback */ }}
+                        onTestRequested={() => { fetchPatientData(); }}
+                    />
+                </CardContent>
+            </Card>
+            
+            <Card className="shadow-xl">
+                <CardHeader>
+                    <CardTitle className="text-xl font-headline flex items-center gap-2"><ListChecks className="w-5 h-5"/>Specialist Actions</CardTitle>
+                </CardHeader>
+                 <CardContent className="space-y-3">
+                    <RequestConsultationDialog
+                        patientId={patient.id}
+                        patientName={patient.patientName}
+                        onConsultationRequested={() => fetchPatientData()} // Re-fetch to update list and status
+                    />
+                     <EmailButton
+                        receiverEmail="specialist@example.cm" // Generic, replace if actual specialist emails are stored
+                        subject={`Regarding Patient: ${patient.patientName} (ID: ${patient.patientId}) - Follow-up`}
+                        body={`Dear Specialist,\n\nFollowing up on the consultation for patient ${patient.patientName} (ID: ${patient.patientId}).\n\n...\n\nThank you,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
+                        buttonText="Email Specialist (General Follow-up)"
+                        icon={<MailIcon className="mr-2 h-4 w-4" />}
+                        className="w-full"
+                        variant="outline"
                     />
                 </CardContent>
             </Card>
 
             <Card className="shadow-xl">
                 <CardHeader>
-                    <CardTitle className="text-xl font-headline">Communication</CardTitle>
+                    <CardTitle className="text-xl font-headline">Caregiver Communication</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                      <EmailButton
-                        receiverEmail={caregiverProfile?.email || "caregiver-email-not-found@example.cm"}
+                        receiverEmail={caregiverProfile?.email || "caregiver-email-not-available@example.com"}
                         subject={`Regarding Patient: ${patient.patientName} (ID: ${patient.patientId}) - Information Request`}
                         body={`Dear Caregiver,\n\nPlease could you provide additional information or clarification regarding patient ${patient.patientName} (ID: ${patient.patientId})?\n\nSpecifically, I need...\n\nThank you,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
                         buttonText="Request Info from Caregiver"
@@ -493,15 +652,6 @@ export default function DoctorPatientDetailPage() {
                         disabled={!caregiverProfile?.email}
                         title={!caregiverProfile?.email ? "Caregiver email not available" : ""}
                     />
-                    <EmailButton
-                        receiverEmail="specialist-consult@infantcare.cm" 
-                        subject={`Specialist Consultation Request for Patient: ${patient.patientName} (ID: ${patient.patientId})`}
-                        body={`Dear Specialist,\n\nI would like to request your consultation for patient ${patient.patientName} (ID: ${patient.patientId}).\n\nCase details: ...\n\nThank you,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
-                        buttonText="Contact Specialist"
-                        icon={<MailIcon className="mr-2 h-4 w-4" />}
-                        className="w-full"
-                    />
-                    <p className="text-xs text-muted-foreground text-center">The specialist's email is a generic address.</p>
                 </CardContent>
             </Card>
         </div>
@@ -509,3 +659,5 @@ export default function DoctorPatientDetailPage() {
     </div>
   );
 }
+
+    
