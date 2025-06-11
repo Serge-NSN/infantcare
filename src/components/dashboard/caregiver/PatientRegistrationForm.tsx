@@ -36,7 +36,7 @@ import { useRouter } from "next/navigation";
 const patientRegistrationSchema = z.object({
   hospitalName: z.string().min(2, "Hospital name is required."),
   patientName: z.string().min(2, "Patient name is required."),
-  patientAge: z.string().min(1, "Patient age is required (e.g., 3 mois, 1 an)."),
+  patientAge: z.string().min(1, "Patient age is required (e.g., 3 months, 1 year)."),
   patientGender: z.enum(["Male", "Female", "Other"], { required_error: "Gender is required." }),
   patientAddress: z.string().min(5, "Address is required."),
   patientPhoneNumber: z.string().min(9, "Valid phone number is required (e.g., +237 6XXXXXXXX)."),
@@ -166,8 +166,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
           uploadedFileNames: [...new Set([...(patientToEdit.uploadedFileNames || []), ...uploadedImageUrls])],
           updatedAt: serverTimestamp() as Timestamp,
         };
-        // delete (updatedPatientData as any).patientFiles; // This line is not needed as patientFiles is not part of updatedPatientData structure
-
+        
         const patientDocRef = doc(db, "patients", patientToEdit.id);
         await updateDoc(patientDocRef, updatedPatientData);
         toast({
@@ -200,8 +199,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
           createdAt: serverTimestamp(),
           uploadedFileNames: uploadedImageUrls,
         };
-        // delete (patientDataForCreate as any).patientFiles; // patientFiles is not part of patientDataForCreate
-
+        
         const newPatientRef = await addDoc(collection(db, "patients"), patientDataForCreate);
         toast({
           title: "Patient Registration Successful",
@@ -237,9 +235,9 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
             name="hospitalName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Nom de l'Hôpital</FormLabel>
+                <FormLabel>Hospital Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., Hôpital Laquintinie Douala" {...field} />
+                  <Input placeholder="e.g., Laquintinie Hospital Douala" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -247,7 +245,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
           />
           {isEditMode && patientToEdit?.hospitalId && (
              <FormItem>
-                <FormLabel>ID Hôpital (Généré par le système)</FormLabel>
+                <FormLabel>Hospital ID (System Generated)</FormLabel>
                 <Input value={patientToEdit.hospitalId} readOnly disabled className="bg-muted/50" />
              </FormItem>
           )}
@@ -257,7 +255,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
             name="patientName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Nom Complet du Patient</FormLabel>
+                <FormLabel>Patient's Full Name</FormLabel>
                 <FormControl>
                   <Input placeholder="e.g., Adama Bebé" {...field} />
                 </FormControl>
@@ -270,9 +268,9 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
             name="patientAge"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Âge du Patient</FormLabel>
+                <FormLabel>Patient's Age</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., 6 mois / 1 an 2 mois" {...field} />
+                  <Input placeholder="e.g., 6 months / 1 year 2 months" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -283,17 +281,17 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
             name="patientGender"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Sexe</FormLabel>
+                <FormLabel>Gender</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner le sexe" />
+                      <SelectValue placeholder="Select gender" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="Male">Masculin</SelectItem>
-                    <SelectItem value="Female">Féminin</SelectItem>
-                    <SelectItem value="Other">Autre</SelectItem>
+                    <SelectItem value="Male">Male</SelectItem>
+                    <SelectItem value="Female">Female</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -305,9 +303,9 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
             name="patientAddress"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Adresse</FormLabel>
+                <FormLabel>Address</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., Quartier Nlongkak, Yaoundé" {...field} />
+                  <Input placeholder="e.g., Nlongkak Quarter, Yaoundé" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -318,7 +316,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
             name="patientPhoneNumber"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Numéro de Téléphone (Gardien)</FormLabel>
+                <FormLabel>Phone Number (Guardian)</FormLabel>
                 <FormControl>
                   <Input type="tel" placeholder="+237 6XX XXX XXX" {...field} />
                 </FormControl>
@@ -333,10 +331,10 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
               <FormItem className="md:col-span-2">
                 <MedicalTermInput
                   id="previousDiseases"
-                  label="Antécédents Médicaux (Optionnel)"
+                  label="Previous Diseases (Optional)"
                   value={field.value || ""}
                   onValueChange={field.onChange}
-                  placeholder="Tapez pour obtenir des suggestions, e.g., Paludisme, Ictère néonatal"
+                  placeholder="Type for suggestions, e.g., Malaria, Neonatal jaundice"
                 />
                 <FormMessage />
               </FormItem>
@@ -349,10 +347,10 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
               <FormItem className="md:col-span-2">
                  <MedicalTermInput
                   id="currentMedications"
-                  label="Médicaments Actuels (Optionnel)"
+                  label="Current Medications (Optional)"
                   value={field.value || ""}
                   onValueChange={field.onChange}
-                  placeholder="Tapez pour obtenir des suggestions, e.g., Paracétamol pédiatrique"
+                  placeholder="Type for suggestions, e.g., Pediatric paracetamol"
                 />
                 <FormMessage />
               </FormItem>
@@ -361,10 +359,10 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
 
           {isEditMode && patientToEdit && patientToEdit.uploadedFileNames && patientToEdit.uploadedFileNames.length > 0 && (
             <div className="md:col-span-2 space-y-2">
-              <FormLabel>Fichiers Actuellement Téléchargés</FormLabel>
+              <FormLabel>Currently Uploaded Files</FormLabel>
               <ul className="list-disc list-inside text-sm text-muted-foreground p-2 border rounded-md bg-secondary/30">
                 {patientToEdit.uploadedFileNames.map((fileUrl, index) => {
-                    let displayName = `Image Cloudinary ${index + 1}`;
+                    let displayName = `Cloudinary Image ${index + 1}`;
                     try {
                         const urlParts = fileUrl.split('/');
                         displayName = urlParts[urlParts.length -1] || displayName;
@@ -377,7 +375,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
                   );
                 })}
               </ul>
-              <p className="text-xs text-muted-foreground">Téléchargez de nouveaux fichiers image ci-dessous pour les ajouter. La suppression de fichiers n'est pas prise en charge dans ce formulaire.</p>
+              <p className="text-xs text-muted-foreground">Upload new image files below to add them. Deleting files is not supported in this form.</p>
             </div>
           )}
 
@@ -386,7 +384,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
             name="patientFiles"
             render={({ field: { onChange, value, ...rest } }) => (
               <FormItem className="md:col-span-2">
-                <FormLabel>{isEditMode ? "Ajouter Plus de Fichiers Image (Optionnel)" : "Télécharger Images du Patient (Optionnel)"}</FormLabel>
+                <FormLabel>{isEditMode ? "Add More Image Files (Optional)" : "Upload Patient Images (Optional)"}</FormLabel>
                 <FormControl>
                   <Input
                     type="file"
@@ -397,7 +395,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
                   />
                 </FormControl>
                 <FormMessage />
-                <p className="text-xs text-muted-foreground">Seuls les fichiers image sont acceptés. Vous pouvez sélectionner plusieurs fichiers. Les images seront téléchargées sur Cloudinary.</p>
+                <p className="text-xs text-muted-foreground">Only image files are accepted. You can select multiple files. Images will be uploaded to Cloudinary.</p>
               </FormItem>
             )}
           />
@@ -408,7 +406,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
           disabled={form.formState.isSubmitting || isUploading || !currentUser}
         >
           {form.formState.isSubmitting || isUploading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
-          {isUploading ? "Téléchargement des fichiers..." : (form.formState.isSubmitting ? (isEditMode ? "Sauvegarde en cours..." : "Enregistrement...") : (isEditMode ? "Sauvegarder les Modifications" : "Enregistrer le Patient"))}
+          {isUploading ? "Uploading files..." : (form.formState.isSubmitting ? (isEditMode ? "Saving..." : "Registering...") : (isEditMode ? "Save Changes" : "Register Patient"))}
         </Button>
       </form>
     </Form>

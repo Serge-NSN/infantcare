@@ -34,11 +34,9 @@ interface PatientData {
   patientGender: string;
   patientAddress: string;
   patientPhoneNumber: string;
-  // patientReligion?: string; // Removed
   hospitalName: string;
   previousDiseases?: string;
   currentMedications?: string;
-  // insuranceDetails?: string; // Removed
   uploadedFileNames?: string[]; // Assumed to be URLs now
   registrationDateTime: Timestamp;
   feedbackStatus: string; 
@@ -253,7 +251,7 @@ export default function DoctorPatientDetailPage() {
             <Card className="lg:col-span-2 shadow-xl">
                  <CardHeader><Skeleton className="h-20 w-full" /></CardHeader>
                  <CardContent className="space-y-4">
-                    {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)} {/* Reduced from 4 */}
+                    {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
                  </CardContent>
             </Card>
             <Card className="shadow-xl h-fit">
@@ -351,7 +349,7 @@ export default function DoctorPatientDetailPage() {
                         <DetailItem label="Hospital ID" value={patient.hospitalId} icon={Fingerprint} />
                          <DetailItem
                             label="Registered On"
-                            value={patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleString() : 'N/A'}
+                            value={patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleString('en-US') : 'N/A'}
                             icon={CalendarDays}
                         />
                         <DetailItem label="Registered By (Caregiver)" value={patient.caregiverName} icon={UserCheck} />
@@ -487,23 +485,23 @@ export default function DoctorPatientDetailPage() {
                 <CardContent className="space-y-3">
                      <EmailButton
                         receiverEmail={caregiverProfile?.email || "caregiver-email-not-found@example.cm"}
-                        subject={`Concernant le Patient: ${patient.patientName} (ID: ${patient.patientId}) - Demande d'Information`}
-                        body={`Cher Personnel Soignant,\n\nPourriez-vous s'il vous plaît fournir des informations supplémentaires ou des éclaircissements concernant le patient ${patient.patientName} (ID: ${patient.patientId})?\n\nPlus précisément, j'ai besoin de...\n\nMerci,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
-                        buttonText="Demander Infos au Soignant"
+                        subject={`Regarding Patient: ${patient.patientName} (ID: ${patient.patientId}) - Information Request`}
+                        body={`Dear Caregiver,\n\nPlease could you provide additional information or clarification regarding patient ${patient.patientName} (ID: ${patient.patientId})?\n\nSpecifically, I need...\n\nThank you,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
+                        buttonText="Request Info from Caregiver"
                         icon={<Send className="mr-2 h-4 w-4" />}
                         className="w-full"
                         disabled={!caregiverProfile?.email}
-                        title={!caregiverProfile?.email ? "E-mail du soignant non disponible" : ""}
+                        title={!caregiverProfile?.email ? "Caregiver email not available" : ""}
                     />
                     <EmailButton
-                        receiverEmail="specialiste-consult@infantcare.cm" 
-                        subject={`Demande de Consultation Spécialiste pour Patient: ${patient.patientName} (ID: ${patient.patientId})`}
-                        body={`Cher Spécialiste,\n\nJe voudrais demander votre consultation pour le patient ${patient.patientName} (ID: ${patient.patientId}).\n\nDétails du cas: ...\n\nMerci,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
-                        buttonText="Contacter Spécialiste"
+                        receiverEmail="specialist-consult@infantcare.cm" 
+                        subject={`Specialist Consultation Request for Patient: ${patient.patientName} (ID: ${patient.patientId})`}
+                        body={`Dear Specialist,\n\nI would like to request your consultation for patient ${patient.patientName} (ID: ${patient.patientId}).\n\nCase details: ...\n\nThank you,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
+                        buttonText="Contact Specialist"
                         icon={<MailIcon className="mr-2 h-4 w-4" />}
                         className="w-full"
                     />
-                    <p className="text-xs text-muted-foreground text-center">L'e-mail du spécialiste est une adresse générique.</p>
+                    <p className="text-xs text-muted-foreground text-center">The specialist's email is a generic address.</p>
                 </CardContent>
             </Card>
         </div>
