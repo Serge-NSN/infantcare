@@ -82,7 +82,7 @@ export default function HomePage() {
           <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground px-8 py-6 text-lg">
             <Link href="/signup">Get Started</Link>
           </Button>
-          <Button asChild variant="outline" size="lg" className="border-white text-dark hover:bg-white/20 hover:text-white px-8 py-6 text-lg">
+          <Button asChild variant="outline" size="lg" className="border-white text-white bg-white/20 hover:text-white px-8 py-6 text-lg">
             <Link href="/education">Learn More</Link>
           </Button>
         </div>
