@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { MedicalTermInput } from "@/components/shared/MedicalTermInput";
 import { useToast } from "@/hooks/use-toast";
-import { Save, FileText, Loader2 } from "lucide-react";
+import { Save, FileText, Loader2, Wifi } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, updateDoc, doc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
@@ -226,6 +226,13 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
     }
   }
 
+  const handleTelemonitoringClick = () => {
+    toast({
+      title: "Feature Coming Soon",
+      description: "Telemonitoring integration will be available in a future update.",
+    });
+  };
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
@@ -257,7 +264,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
               <FormItem>
                 <FormLabel>Patient's Full Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., Adama Bebé" {...field} />
+                  <Input placeholder="e.g., Adama Bebe" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -305,7 +312,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
               <FormItem>
                 <FormLabel>Address</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., Nlongkak Quarter, Yaoundé" {...field} />
+                  <Input placeholder="e.g., Nlongkak Quarter, Yaounde" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -400,14 +407,25 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
             )}
           />
         </div>
-        <Button
-          type="submit"
-          className="w-full md:w-auto bg-accent hover:bg-accent/90 text-accent-foreground"
-          disabled={form.formState.isSubmitting || isUploading || !currentUser}
-        >
-          {form.formState.isSubmitting || isUploading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
-          {isUploading ? "Uploading files..." : (form.formState.isSubmitting ? (isEditMode ? "Saving..." : "Registering...") : (isEditMode ? "Save Changes" : "Register Patient"))}
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <Button
+            type="submit"
+            className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground"
+            disabled={form.formState.isSubmitting || isUploading || !currentUser}
+          >
+            {form.formState.isSubmitting || isUploading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
+            {isUploading ? "Uploading files..." : (form.formState.isSubmitting ? (isEditMode ? "Saving..." : "Registering...") : (isEditMode ? "Save Changes" : "Register Patient"))}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={handleTelemonitoringClick}
+          >
+            <Wifi className="mr-2 h-5 w-5" />
+            Telemonitoring (Fetch Data)
+          </Button>
+        </div>
       </form>
     </Form>
   );

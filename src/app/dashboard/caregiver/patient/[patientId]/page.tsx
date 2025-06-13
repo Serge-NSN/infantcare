@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, Timestamp, collection, query, orderBy, onSnapshot, Unsubscribe } from 'firebase/firestore';
-import { ArrowLeft, UserCircle, Hospital, CalendarDays, Stethoscope, Microscope, FileText as FileIcon, Edit, AlertTriangle, Info, Fingerprint, UserCheck, MessageSquareText, FileScan, Download, Loader2 } from 'lucide-react';
+import { ArrowLeft, UserCircle, Hospital, CalendarDays, Stethoscope, Microscope, FileText as FileIcon, Edit, AlertTriangle, Info, Fingerprint, UserCheck, MessageSquareText, FileScan, Download, Loader2, Wifi } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { FeedbackList, type FeedbackItem } from '@/components/dashboard/shared/FeedbackList';
@@ -29,11 +29,9 @@ interface PatientData {
   patientGender: string;
   patientAddress: string;
   patientPhoneNumber: string;
-  // patientReligion?: string; // Removed
   hospitalName: string;
   previousDiseases?: string;
   currentMedications?: string;
-  // insuranceDetails?: string; // Removed
   uploadedFileNames?: string[]; // Caregiver uploaded files (assumed to be URLs now)
   registrationDateTime: Timestamp;
   feedbackStatus: string; 
@@ -162,6 +160,13 @@ export default function CaregiverPatientDetailPage() {
       setIsGeneratingPdf(false);
     }
   };
+  
+  const handleTelemonitoringClick = () => {
+    toast({
+      title: "Feature Coming Soon",
+      description: "Telemonitoring integration will be available in a future update to fetch live patient data.",
+    });
+  };
 
   const overallLoading = loadingPatient || authLoading;
 
@@ -175,7 +180,7 @@ export default function CaregiverPatientDetailPage() {
             <Skeleton className="h-6 w-1/2" />
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[...Array(6)].map((_, i) => ( // Reduced from 8 as 2 fields removed
+            {[...Array(6)].map((_, i) => (
               <div key={i} className="space-y-2">
                 <Skeleton className="h-5 w-1/3" />
                 <Skeleton className="h-5 w-2/3" />
@@ -281,6 +286,14 @@ export default function CaregiverPatientDetailPage() {
                 {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                 {isGeneratingPdf ? 'Generating...' : 'Download Report'}
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleTelemonitoringClick}
+              >
+                <Wifi className="mr-2 h-4 w-4" />
+                Telemonitoring
+              </Button>
             </div>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -291,7 +304,7 @@ export default function CaregiverPatientDetailPage() {
               <DetailItem label="Hospital ID" value={patient.hospitalId} icon={Fingerprint} />
               <DetailItem 
                 label="Registered On" 
-                value={patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleString() : 'N/A'} 
+                value={patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleString('en-US') : 'N/A'} 
                 icon={CalendarDays}
               />
               <DetailItem label="Registered By" value={patient.caregiverName} icon={UserCheck} />
@@ -329,10 +342,10 @@ export default function CaregiverPatientDetailPage() {
                       } else if (fileSrc.startsWith('http://') || fileSrc.startsWith('https://')) {
                         if ((/\.(jpe?g|png|gif|webp)(\?|$)/i.test(fileSrc) || fileSrc.includes('cloudinary'))) {
                             try {
-                                new URL(fileSrc); // Validate URL structure
+                                new URL(fileSrc); 
                                 showActualImage = true;
                             } catch (e) {
-                                // console.warn(`[Image Check] Malformed URL string in uploadedFileNames: ${fileSrc}`);
+                                console.warn(`[Image Check] Malformed URL string in uploadedFileNames: ${fileSrc}`);
                             }
                         }
                       }
