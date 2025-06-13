@@ -72,8 +72,8 @@ export default function ContactPage() {
               <MapPin className="h-6 w-6 text-primary mt-1" />
               <div>
                 <h3 className="font-semibold">Office Address</h3>
-                <p className="text-muted-foreground">123 Infant Care Avenue</p>
-                <p className="text-muted-foreground">Bastos Quarter, Yaoundé</p>
+                <p className="text-muted-foreground">Bambili</p>
+                <p className="text-muted-foreground">North West Region</p>
                 <p className="text-muted-foreground">Cameroon</p>
               </div>
             </div>

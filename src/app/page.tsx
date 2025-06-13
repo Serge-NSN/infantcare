@@ -61,7 +61,7 @@ export default function HomePage() {
         layout="fill"
         objectFit="cover"
         quality={80}
-        className="opacity-30 z-0"
+        className="opacity-60 z-0"
         data-ai-hint="healthcare children"
         priority // Ensures the LCP image is prioritized
       />
@@ -82,7 +82,7 @@ export default function HomePage() {
           <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground px-8 py-6 text-lg">
             <Link href="/signup">Get Started</Link>
           </Button>
-          <Button asChild variant="outline" size="lg" className="border-white text-white hover:bg-white/20 hover:text-white px-8 py-6 text-lg">
+          <Button asChild variant="outline" size="lg" className="border-white text-dark hover:bg-white/20 hover:text-white px-8 py-6 text-lg">
             <Link href="/education">Learn More</Link>
           </Button>
         </div>
