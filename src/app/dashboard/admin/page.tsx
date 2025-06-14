@@ -4,17 +4,18 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
-import { BarChart3, AlertTriangle, ListFilter, Users, ClipboardCheck, Clock, ShieldCheck, Users2, Settings2 } from 'lucide-react';
+import { BarChart3, AlertTriangle, ListFilter, Users, ClipboardCheck, Clock, ShieldCheck, Users2, Settings2, BriefcaseMedical, UserPlus, Activity } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getCountFromServer, getDocs } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter } from 'next/navigation';
+import { getDashboardLink } from '@/lib/utils/getDashboardLink';
 
 interface AdminDashboardStats {
   totalPatients: number;
-  pendingCasesCount: number; // Patients with 'Pending Doctor Review' or 'Pending Specialist Consultation' or 'Specialist Feedback Provided'
+  pendingCasesCount: number; 
   totalCaregivers: number;
   totalDoctors: number;
   totalSpecialists: number;
@@ -32,7 +33,7 @@ export default function AdminDashboardPage() {
     if (!authLoading && currentUser) {
         const userRole = localStorage.getItem('userRole');
         if (userRole !== 'Admin') {
-            router.replace(getDashboardLink(userRole)); // Redirect if not admin
+            router.replace(getDashboardLink(userRole)); 
             return;
         }
         setAdminName(currentUser.displayName || localStorage.getItem('userFullName') || currentUser.email?.split('@')[0] || 'Admin');
@@ -110,19 +111,14 @@ export default function AdminDashboardPage() {
       <div className="container mx-auto py-8 px-4">
         <Skeleton className="h-10 w-1/3 mb-6" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            <Skeleton className="h-36 w-full" />
-            <Skeleton className="h-36 w-full" />
-            <Skeleton className="h-36 w-full" />
-            <Skeleton className="h-36 w-full md:col-span-1 lg:col-span-1" />
-            <Skeleton className="h-36 w-full md:col-span-1 lg:col-span-1" />
+            {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-40 w-full rounded-lg" />)}
         </div>
-        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-40 w-full rounded-lg" />
       </div>
     );
   }
 
   if (!currentUser || localStorage.getItem('userRole') !== 'Admin') {
-    // This case should ideally be handled by the redirect, but as a fallback:
     return (
       <div className="container mx-auto py-8 px-4 text-center">
         <p>Access Denied. Redirecting...</p>
@@ -130,21 +126,36 @@ export default function AdminDashboardPage() {
     );
   }
 
+  const StatCard = ({ title, value, icon: Icon, description, colorClass = "text-primary", bgColorClass = "bg-primary/10" }: { title: string, value: number | string, icon: React.ElementType, description: string, colorClass?: string, bgColorClass?: string }) => (
+    <Card className="shadow-xl hover:shadow-2xl transition-shadow duration-300 rounded-xl overflow-hidden">
+      <CardHeader className={`pb-2 ${bgColorClass}`}>
+        <CardTitle className={`text-xl font-headline flex items-center justify-between ${colorClass}`}>
+          {title}
+          <Icon className={`h-7 w-7 ${colorClass} opacity-80`} />
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-4">
+        <p className={`text-5xl font-bold ${colorClass}`}>{value}</p>
+        <CardDescription className="mt-1 text-muted-foreground">{description}</CardDescription>
+      </CardContent>
+    </Card>
+  );
+
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+    <div className="container mx-auto py-10 px-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-4">
         <div>
-          <h1 className="text-3xl font-headline flex items-center gap-2">
-            <ShieldCheck className="w-8 h-8 text-primary"/>
-            Admin Dashboard - Welcome, {adminName || <Skeleton className="h-8 w-40 inline-block" />}!
+          <h1 className="text-4xl font-headline text-foreground flex items-center gap-3">
+            <ShieldCheck className="w-10 h-10 text-primary"/>
+            Admin Dashboard
           </h1>
-          <p className="text-muted-foreground font-body">System overview and management tools.</p>
+          <p className="text-lg text-muted-foreground font-body">Welcome, {adminName || <Skeleton className="h-8 w-40 inline-block" />}! System overview and management.</p>
         </div>
       </div>
       
       {error && (
-        <Card className="mb-6 border-destructive bg-destructive/10">
+        <Card className="mb-8 border-destructive bg-destructive/10 rounded-lg">
           <CardHeader>
             <CardTitle className="text-destructive flex items-center gap-2">
               <AlertTriangle /> Error Loading Stats
@@ -156,89 +167,30 @@ export default function AdminDashboardPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-xl font-headline flex items-center justify-between">
-              Total Patients
-              <Users className="h-6 w-6 text-muted-foreground" />
-            </CardTitle>
-            <CardDescription>All registered patients in the system.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold">{stats?.totalPatients ?? 0}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-xl font-headline flex items-center justify-between">
-              Pending Cases
-              <Clock className="h-6 w-6 text-muted-foreground" />
-            </CardTitle>
-            <CardDescription>Cases awaiting doctor or specialist action.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold">{stats?.pendingCasesCount ?? 0}</p>
-          </CardContent>
-        </Card>
-        
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-xl font-headline flex items-center justify-between">
-              Registered Caregivers
-              <Users2 className="h-6 w-6 text-muted-foreground" />
-            </CardTitle>
-            <CardDescription>Total number of caregivers.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold">{stats?.totalCaregivers ?? 0}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-xl font-headline flex items-center justify-between">
-              Registered Doctors
-              <Users2 className="h-6 w-6 text-muted-foreground" />
-            </CardTitle>
-            <CardDescription>Total number of medical doctors.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold">{stats?.totalDoctors ?? 0}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-xl font-headline flex items-center justify-between">
-              Registered Specialists
-              <Users2 className="h-6 w-6 text-muted-foreground" />
-            </CardTitle>
-            <CardDescription>Total number of specialists.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold">{stats?.totalSpecialists ?? 0}</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6 mb-10">
+        <StatCard title="Total Patients" value={stats?.totalPatients ?? 0} icon={Users} description="All registered patients." colorClass="text-blue-600" bgColorClass="bg-blue-600/10" />
+        <StatCard title="Pending Cases" value={stats?.pendingCasesCount ?? 0} icon={Activity} description="Awaiting doctor/specialist action." colorClass="text-orange-600" bgColorClass="bg-orange-600/10" />
+        <StatCard title="Caregivers" value={stats?.totalCaregivers ?? 0} icon={UserPlus} description="Registered caregivers." colorClass="text-green-600" bgColorClass="bg-green-600/10"/>
+        <StatCard title="Doctors" value={stats?.totalDoctors ?? 0} icon={BriefcaseMedical} description="Registered medical doctors." colorClass="text-purple-600" bgColorClass="bg-purple-600/10" />
+        <StatCard title="Specialists" value={stats?.totalSpecialists ?? 0} icon={Users2} description="Registered specialists." colorClass="text-teal-600" bgColorClass="bg-teal-600/10" />
       </div>
 
-      <Card className="shadow-xl">
+      <Card className="shadow-xl rounded-xl">
         <CardHeader>
           <CardTitle className="text-2xl font-headline flex items-center gap-2">
-            <Settings2 className="w-6 h-6 text-primary" /> Quick Management Actions
+            <Settings2 className="w-7 h-7 text-primary" /> Quick Management Actions
           </CardTitle>
-          <CardDescription className="font-body">
+          <CardDescription className="font-body text-muted-foreground">
             Navigate to system-wide record views.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col sm:flex-row gap-4">
-          <Button asChild variant="default" size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90">
+        <CardContent className="flex flex-col sm:flex-row gap-4 pt-2">
+          <Button asChild variant="default" size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 text-base rounded-lg shadow-md hover:shadow-lg transition-all">
             <Link href="/dashboard/admin/view-all-patients">
               <ListFilter className="mr-2 h-5 w-5" /> View All Patient Records
             </Link>
           </Button>
-          <Button asChild variant="outline" size="lg">
+          <Button asChild variant="outline" size="lg" className="text-base rounded-lg shadow-md hover:shadow-lg transition-all">
             <Link href="/dashboard/admin/view-all-users">
               <Users className="mr-2 h-5 w-5" /> View All User Accounts
             </Link>

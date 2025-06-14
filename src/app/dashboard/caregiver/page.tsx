@@ -1,4 +1,3 @@
-
 // src/app/dashboard/caregiver/page.tsx
 "use client";
 
@@ -7,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getCountFromServer, or } from 'firebase/firestore';
-import { BarChart3, PlusCircle, Users, AlertTriangle, Clock, CheckCircle2 } from 'lucide-react';
+import { PlusCircle, Users, AlertTriangle, Clock, CheckCircle2, HeartHandshake, ListOrdered, Activity } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -55,7 +54,6 @@ export default function CaregiverDashboardPage() {
         const reviewedQuery = query(
           patientsCollectionRef,
           where('caregiverUid', '==', currentUser.uid),
-          // Firestore 'in' query for multiple status checks
           where('feedbackStatus', 'in', ['Reviewed by Doctor', 'Specialist Feedback Provided']) 
         );
         const reviewedSnapshot = await getCountFromServer(reviewedQuery);
@@ -83,14 +81,51 @@ export default function CaregiverDashboardPage() {
     fetchPatientStats();
   }, [currentUser]);
 
+  const StatCard = ({ title, value, icon: Icon, description, link, linkText, colorClass = "text-primary", bgColorClass = "bg-primary/10" }: { title: string, value: number | string, icon: React.ElementType, description: string, link?: string, linkText?: string, colorClass?: string, bgColorClass?: string }) => (
+    <Card className="shadow-xl hover:shadow-2xl transition-shadow duration-300 rounded-xl overflow-hidden">
+       {link ? (
+         <Link href={link} className="block h-full">
+            <CardHeader className={`pb-2 ${bgColorClass}`}>
+                <CardTitle className={`text-xl font-headline flex items-center justify-between ${colorClass}`}>
+                {title}
+                <Icon className={`h-7 w-7 ${colorClass} opacity-80`} />
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+                <p className={`text-5xl font-bold ${colorClass}`}>{loading ? <Skeleton className="h-12 w-1/2 inline-block" /> : value}</p>
+                <CardDescription className="mt-1 text-muted-foreground">{description}</CardDescription>
+                {linkText && <p className={`text-sm ${colorClass} hover:underline mt-3 font-semibold`}>{linkText} &rarr;</p>}
+            </CardContent>
+         </Link>
+       ) : (
+        <>
+            <CardHeader className={`pb-2 ${bgColorClass}`}>
+                <CardTitle className={`text-xl font-headline flex items-center justify-between ${colorClass}`}>
+                {title}
+                <Icon className={`h-7 w-7 ${colorClass} opacity-80`} />
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+                 <p className={`text-5xl font-bold ${colorClass}`}>{loading ? <Skeleton className="h-12 w-1/2 inline-block" /> : value}</p>
+                <CardDescription className="mt-1 text-muted-foreground">{description}</CardDescription>
+            </CardContent>
+        </>
+       )}
+    </Card>
+  );
+
+
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+    <div className="container mx-auto py-10 px-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-4">
         <div>
-          <h1 className="text-3xl font-headline">Welcome, {caregiverName || <Skeleton className="h-8 w-40 inline-block" />}!</h1>
-          <p className="text-muted-foreground font-body">Here's an overview of your patient activities.</p>
+          <h1 className="text-4xl font-headline text-foreground flex items-center gap-3">
+            <HeartHandshake className="w-10 h-10 text-primary"/>
+            Welcome, {caregiverName || <Skeleton className="h-8 w-40 inline-block" />}!
+          </h1>
+          <p className="text-lg text-muted-foreground font-body">Here's an overview of your patient activities.</p>
         </div>
-        <Button asChild size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 w-full sm:w-auto">
+        <Button asChild size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 text-base rounded-lg shadow-md hover:shadow-lg transition-all w-full sm:w-auto">
           <Link href="/dashboard/caregiver/add-patient">
             <PlusCircle className="mr-2 h-5 w-5" /> Add New Patient
           </Link>
@@ -98,7 +133,7 @@ export default function CaregiverDashboardPage() {
       </div>
 
       {error && (
-        <Card className="mb-6 border-destructive bg-destructive/10">
+        <Card className="mb-8 border-destructive bg-destructive/10 rounded-lg">
           <CardHeader>
             <CardTitle className="text-destructive flex items-center gap-2">
               <AlertTriangle /> Error Loading Stats
@@ -110,74 +145,49 @@ export default function CaregiverDashboardPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-xl font-headline flex items-center justify-between">
-              Total Patients
-              <BarChart3 className="h-6 w-6 text-muted-foreground" />
-            </CardTitle>
-            <CardDescription>Number of patients you manage.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Skeleton className="h-10 w-1/4" />
-            ) : (
-              <p className="text-4xl font-bold">{stats?.totalPatients ?? 0}</p>
-            )}
-          </CardContent>
-        </Card>
-        
-        <Card className="shadow-lg hover:shadow-xl transition-shadow">
-          <Link href="/dashboard/caregiver/waiting-list" className="block h-full">
-            <CardHeader>
-              <CardTitle className="text-xl font-headline flex items-center justify-between">
-                Waiting List
-                <Clock className="h-6 w-6 text-muted-foreground" />
-              </CardTitle>
-              <CardDescription>Patients pending doctor review.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <Skeleton className="h-10 w-1/4" />
-              ) : (
-                <p className="text-4xl font-bold">{stats?.waitingListCount ?? 0}</p>
-              )}
-              <p className="text-xs text-primary hover:underline mt-2">View Waiting List &rarr;</p>
-            </CardContent>
-          </Link>
-        </Card>
-
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-xl font-headline flex items-center justify-between">
-              Reviewed Patients
-              <CheckCircle2 className="h-6 w-6 text-muted-foreground" />
-            </CardTitle>
-            <CardDescription>Patients who have received doctor feedback.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Skeleton className="h-10 w-1/4" />
-            ) : (
-              <p className="text-4xl font-bold">{stats?.reviewedPatientsCount ?? 0}</p>
-            )}
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <StatCard 
+            title="Total Patients" 
+            value={stats?.totalPatients ?? 0} 
+            icon={Users} 
+            description="Number of patients you manage." 
+            colorClass="text-blue-600" 
+            bgColorClass="bg-blue-600/10"
+        />
+        <StatCard 
+            title="Waiting List" 
+            value={stats?.waitingListCount ?? 0} 
+            icon={Clock} 
+            description="Patients pending doctor review." 
+            link="/dashboard/caregiver/waiting-list"
+            linkText="View Waiting List"
+            colorClass="text-orange-600" 
+            bgColorClass="bg-orange-600/10"
+        />
+        <StatCard 
+            title="Reviewed Patients" 
+            value={stats?.reviewedPatientsCount ?? 0} 
+            icon={CheckCircle2} 
+            description="Patients who have received doctor feedback." 
+            colorClass="text-green-600" 
+            bgColorClass="bg-green-600/10"
+        />
       </div>
 
-      <Card className="shadow-xl">
+      <Card className="shadow-xl rounded-xl">
         <CardHeader>
-          <CardTitle className="text-2xl font-headline">Quick Actions</CardTitle>
-          <CardDescription>Manage your patient records.</CardDescription>
+          <CardTitle className="text-2xl font-headline flex items-center gap-2 text-foreground">
+            <Activity className="w-7 h-7 text-primary" />
+            Quick Actions
+          </CardTitle>
+          <CardDescription className="text-muted-foreground">Manage your patient records.</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col sm:flex-row gap-4">
-          <Button asChild variant="outline" size="lg">
+        <CardContent className="flex flex-col sm:flex-row gap-4 pt-2">
+          <Button asChild variant="outline" size="lg" className="text-base rounded-lg shadow-md hover:shadow-lg transition-all">
             <Link href="/dashboard/caregiver/view-patients">
-              <Users className="mr-2 h-5 w-5" /> View All Patients
+              <ListOrdered className="mr-2 h-5 w-5" /> View All Your Patients
             </Link>
           </Button>
-          {/* Add Patient button is now at the top */}
         </CardContent>
       </Card>
     </div>

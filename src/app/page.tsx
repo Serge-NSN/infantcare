@@ -7,8 +7,9 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { getDashboardLink } from '@/lib/utils/getDashboardLink'; // Ensure this path is correct
-import { Skeleton } from '@/components/ui/skeleton'; // For loading state
+import { getDashboardLink } from '@/lib/utils/getDashboardLink'; 
+import { Skeleton } from '@/components/ui/skeleton'; 
+import { HeartHandshake, Users, ShieldCheck, ArrowRight } from 'lucide-react';
 
 export default function HomePage() {
   const { currentUser, loading: authLoading } = useAuth();
@@ -18,79 +19,97 @@ export default function HomePage() {
   useEffect(() => {
     if (!authLoading) {
       if (currentUser) {
-        // User is authenticated, try to get role from localStorage (set during login)
         const userRole = typeof window !== 'undefined' ? localStorage.getItem('userRole') : null;
         if (userRole) {
           router.replace(getDashboardLink(userRole));
         } else {
-          // If role not in localStorage (e.g., direct navigation after login but before localStorage set),
-          // or if a more robust role check is needed, this could be a point for Firestore fetch.
-          // For now, if role is missing, we might keep them here or redirect to a generic logged-in page.
-          // Or, assume logout if role cannot be determined for a logged-in user (could be an inconsistent state).
-          // For simplicity, if role is missing but user is there, we assume a redirect to a default if needed,
-          // but getDashboardLink will handle default cases.
-          // The login process *should* set the role.
-          router.replace(getDashboardLink(null)); // Redirect to login if role is unexpectedly missing
+          router.replace(getDashboardLink(null)); 
         }
       } else {
-        setIsRedirecting(false); // Not authenticated, no redirect needed, show homepage
+        setIsRedirecting(false); 
       }
     }
   }, [currentUser, authLoading, router]);
 
   if (authLoading || isRedirecting) {
-    // Show a full-page loading skeleton or a simpler loading message
     return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-4">
-        <Skeleton className="h-12 w-1/2 mb-4" />
-        <Skeleton className="h-8 w-3/4 mb-6" />
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-4 bg-background">
+        <Skeleton className="h-16 w-3/4 md:w-1/2 mb-6 rounded-lg" />
+        <Skeleton className="h-8 w-5/6 md:w-2/3 mb-8 rounded-md" />
         <div className="flex gap-4">
-          <Skeleton className="h-12 w-32" />
-          <Skeleton className="h-12 w-32" />
+          <Skeleton className="h-14 w-40 rounded-lg" />
+          <Skeleton className="h-14 w-40 rounded-lg" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center p-4 text-center overflow-hidden">
-      {/* Background Image */}
-      <Image
-        src="https://images.unsplash.com/photo-1547082722-ebad0c0cb815?q=80&w=1632&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-        alt="Pediatric care background"
-        layout="fill"
-        objectFit="cover"
-        quality={80}
-        className="opacity-60 z-0"
-        data-ai-hint="healthcare children"
-        priority // Ensures the LCP image is prioritized
-      />
-
-      {/* Darker Overlay to ensure text readability */}
-      <div className="absolute inset-0 bg-black/60 z-0"></div>
-      
-      {/* Content */}
-      <div className="relative z-10 flex flex-col items-center justify-center space-y-8 text-white">
-        <h1 className="text-5xl md:text-7xl font-headline font-bold drop-shadow-md">
-          Welcome to InfantCare
-        </h1>
-        <p className="text-lg md:text-2xl max-w-3xl font-body drop-shadow-sm">
-          Bridging the gap in infant healthcare through seamless collaboration and advanced technology.
-          Connect with specialists, manage patient data, and provide the best care for our youngest patients.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-4">
-          <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground px-8 py-6 text-lg">
-            <Link href="/signup">Get Started</Link>
-          </Button>
-          <Button asChild variant="outline" size="lg" className="border-white text-white bg-white/20 hover:text-white px-8 py-6 text-lg">
-            <Link href="/education">Learn More</Link>
-          </Button>
+    <>
+      <div className="relative min-h-[calc(80vh-4rem)] flex flex-col items-center justify-center p-6 text-center overflow-hidden bg-gradient-to-br from-primary/70 via-secondary/50 to-background">
+        <Image
+          src="https://images.unsplash.com/photo-1516574187841-cb9cc2ca948b?q=80&w=1770&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+          alt="Pediatric care background with happy child and doctor"
+          layout="fill"
+          objectFit="cover"
+          quality={85}
+          className="opacity-30 z-0"
+          data-ai-hint="happy child doctor"
+          priority
+        />
+        <div className="absolute inset-0 bg-black/30 backdrop-blur-sm z-0"></div>
+        
+        <div className="relative z-10 flex flex-col items-center justify-center space-y-8 text-white max-w-4xl">
+          <h1 className="text-5xl md:text-7xl font-headline font-extrabold tracking-tight drop-shadow-lg">
+            Welcome to InfantCare
+          </h1>
+          <p className="text-xl md:text-2xl font-body drop-shadow-md leading-relaxed">
+            Bridging the gap in infant healthcare through seamless collaboration and advanced technology.
+            Connect with specialists, manage patient data, and provide the best care for our youngest patients.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 pt-4">
+            <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground px-10 py-7 text-lg rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+              <Link href="/signup">Get Started <ArrowRight className="ml-2 h-5 w-5"/></Link>
+            </Button>
+            <Button asChild variant="outline" size="lg" className="border-white text-white bg-white/20 hover:bg-white/30 hover:text-white px-10 py-7 text-lg rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+              <Link href="/education">Learn More</Link>
+            </Button>
+          </div>
         </div>
       </div>
-      
-      <div className="absolute bottom-8 z-10 text-white/70 text-sm font-body">
-        Empowering caregivers, doctors, and specialists for a healthier future.
-      </div>
-    </div>
+
+      <section className="py-16 bg-background">
+        <div className="container mx-auto px-6">
+          <h2 className="text-3xl md:text-4xl font-headline text-center text-foreground mb-12">Why Choose InfantCare?</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <FeatureCard
+              icon={<HeartHandshake className="h-12 w-12 text-primary" />}
+              title="Collaborative Care"
+              description="Connect caregivers, doctors, and specialists on one unified platform for holistic infant healthcare."
+            />
+            <FeatureCard
+              icon={<Users className="h-12 w-12 text-accent" />}
+              title="Efficient Workflow"
+              description="Streamline patient registration, data management, test requests, and feedback processes."
+            />
+            <FeatureCard
+              icon={<ShieldCheck className="h-12 w-12 text-green-600" />}
+              title="Secure & Reliable"
+              description="Built with security in mind to protect sensitive patient data and ensure reliable access."
+            />
+          </div>
+        </div>
+      </section>
+    </>
   );
 }
+
+const FeatureCard = ({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) => (
+  <Card className="bg-card shadow-xl hover:shadow-2xl transition-shadow duration-300 rounded-xl p-6 text-center transform hover:-translate-y-1">
+    <div className="flex justify-center mb-4">
+      {icon}
+    </div>
+    <CardTitle className="text-2xl font-headline mb-3 text-foreground">{title}</CardTitle>
+    <CardDescription className="text-muted-foreground text-base leading-relaxed">{description}</CardDescription>
+  </Card>
+);

@@ -4,7 +4,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
-import { BarChart3, AlertTriangle, ListFilter, Users, ClipboardCheck, Clock, GraduationCap } from 'lucide-react';
+import { BarChart3, AlertTriangle, ListFilter, Users, ClipboardCheck, Clock, GraduationCap, BriefcaseMedical, Activity, UserCheck, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getCountFromServer } from 'firebase/firestore';
@@ -12,9 +12,9 @@ import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface DoctorDashboardStats {
-  awaitingReviewCount: number; // Patients with 'Pending Doctor Review' or 'Specialist Feedback Provided'
-  myReviewedCount: number; // Patients with 'Reviewed by Doctor' by this doctor
-  pendingSpecialistConsultationsCount: number; // Patients with 'Pending Specialist Consultation'
+  awaitingReviewCount: number; 
+  myReviewedCount: number; 
+  pendingSpecialistConsultationsCount: number; 
 }
 
 export default function DoctorDashboardPage() {
@@ -51,7 +51,7 @@ export default function DoctorDashboardPage() {
 
         const myReviewedQuery = query(
             patientsCollectionRef,
-            where('doctorId', '==', currentUser.uid), // Assuming doctorId is stored on patient when doctor gives feedback
+            where('doctorId', '==', currentUser.uid), 
             where('feedbackStatus', '==', 'Reviewed by Doctor')
         );
         const myReviewedSnapshot = await getCountFromServer(myReviewedQuery);
@@ -86,32 +86,65 @@ export default function DoctorDashboardPage() {
     fetchDoctorStats();
   }, [currentUser, authLoading]);
 
+  const StatCard = ({ title, value, icon: Icon, description, link, linkText, colorClass = "text-primary", bgColorClass = "bg-primary/10" }: { title: string, value: number | string, icon: React.ElementType, description: string, link?: string, linkText?: string, colorClass?: string, bgColorClass?: string }) => (
+    <Card className="shadow-xl hover:shadow-2xl transition-shadow duration-300 rounded-xl overflow-hidden">
+      {link ? (
+         <Link href={link} className="block h-full">
+            <CardHeader className={`pb-2 ${bgColorClass}`}>
+                <CardTitle className={`text-xl font-headline flex items-center justify-between ${colorClass}`}>
+                {title}
+                <Icon className={`h-7 w-7 ${colorClass} opacity-80`} />
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+                <p className={`text-5xl font-bold ${colorClass}`}>{loadingStats ? <Skeleton className="h-12 w-1/2 inline-block" /> : value}</p>
+                <CardDescription className="mt-1 text-muted-foreground">{description}</CardDescription>
+                 {linkText && <p className={`text-sm ${colorClass} hover:underline mt-3 font-semibold`}>{linkText} &rarr;</p>}
+            </CardContent>
+         </Link>
+       ) : (
+        <>
+            <CardHeader className={`pb-2 ${bgColorClass}`}>
+                <CardTitle className={`text-xl font-headline flex items-center justify-between ${colorClass}`}>
+                {title}
+                <Icon className={`h-7 w-7 ${colorClass} opacity-80`} />
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+                <p className={`text-5xl font-bold ${colorClass}`}>{loadingStats ? <Skeleton className="h-12 w-1/2 inline-block" /> : value}</p>
+                <CardDescription className="mt-1 text-muted-foreground">{description}</CardDescription>
+            </CardContent>
+        </>
+       )}
+    </Card>
+  );
 
-  if (authLoading) {
+  if (authLoading && loadingStats) { // Show skeleton if either auth or stats are loading
     return (
-      <div className="container mx-auto py-8 px-4">
-        <Skeleton className="h-10 w-1/3 mb-6" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-32 w-full" />
+      <div className="container mx-auto py-10 px-4">
+        <Skeleton className="h-12 w-1/2 mb-10" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-48 w-full rounded-xl" />)}
         </div>
-        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-44 w-full rounded-xl" />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+    <div className="container mx-auto py-10 px-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-4">
         <div>
-          <h1 className="text-3xl font-headline">Welcome, Dr. {doctorName || <Skeleton className="h-8 w-40 inline-block" />}!</h1>
-          <p className="text-muted-foreground font-body">Your medical portal overview.</p>
+           <h1 className="text-4xl font-headline text-foreground flex items-center gap-3">
+            <BriefcaseMedical className="w-10 h-10 text-primary"/>
+            Doctor's Portal
+          </h1>
+          <p className="text-lg text-muted-foreground font-body">Welcome, Dr. {doctorName || <Skeleton className="h-8 w-40 inline-block" />}! Your medical overview.</p>
         </div>
       </div>
       
       {error && (
-        <Card className="mb-6 border-destructive bg-destructive/10">
+        <Card className="mb-8 border-destructive bg-destructive/10 rounded-lg">
           <CardHeader>
             <CardTitle className="text-destructive flex items-center gap-2">
               <AlertTriangle /> Error Loading Stats
@@ -123,76 +156,51 @@ export default function DoctorDashboardPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-xl font-headline flex items-center justify-between">
-              Patients Requiring Action
-              <Clock className="h-6 w-6 text-muted-foreground" />
-            </CardTitle>
-            <CardDescription>Cases pending your review or specialist feedback received.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loadingStats ? (
-              <Skeleton className="h-10 w-1/4" />
-            ) : (
-              <p className="text-4xl font-bold">{stats?.awaitingReviewCount ?? 0}</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-xl font-headline flex items-center justify-between">
-              Pending Specialist Consult.
-              <GraduationCap className="h-6 w-6 text-muted-foreground" />
-            </CardTitle>
-            <CardDescription>Patients awaiting feedback from specialists.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loadingStats ? (
-              <Skeleton className="h-10 w-1/4" />
-            ) : (
-              <p className="text-4xl font-bold">{stats?.pendingSpecialistConsultationsCount ?? 0}</p>
-            )}
-          </CardContent>
-        </Card>
-        
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-xl font-headline flex items-center justify-between">
-              My Reviewed Patients
-              <ClipboardCheck className="h-6 w-6 text-muted-foreground" />
-            </CardTitle>
-            <CardDescription>Patients you have personally provided feedback for.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loadingStats ? (
-              <Skeleton className="h-10 w-1/4" />
-            ) : (
-              <p className="text-4xl font-bold">{stats?.myReviewedCount ?? 0}</p>
-            )}
-          </CardContent>
-        </Card>
-
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+         <StatCard 
+            title="Require Action" 
+            value={stats?.awaitingReviewCount ?? 0} 
+            icon={ShieldAlert} 
+            description="Pending reviews or specialist feedback received." 
+            link="/dashboard/doctor/awaiting-review"
+            linkText="View Cases"
+            colorClass="text-orange-600" 
+            bgColorClass="bg-orange-600/10"
+        />
+        <StatCard 
+            title="Pending Specialist Consult." 
+            value={stats?.pendingSpecialistConsultationsCount ?? 0} 
+            icon={GraduationCap} 
+            description="Patients awaiting specialist feedback." 
+            colorClass="text-purple-600" 
+            bgColorClass="bg-purple-600/10"
+        />
+        <StatCard 
+            title="My Reviewed Cases" 
+            value={stats?.myReviewedCount ?? 0} 
+            icon={UserCheck} 
+            description="Patients you've provided feedback for." 
+            colorClass="text-green-600" 
+            bgColorClass="bg-green-600/10"
+        />
       </div>
 
-      <Card className="shadow-xl">
+      <Card className="shadow-xl rounded-xl">
         <CardHeader>
-          <CardTitle className="text-2xl font-headline flex items-center gap-2">
-            <BarChart3 className="w-6 h-6" /> Quick Actions
+          <CardTitle className="text-2xl font-headline flex items-center gap-2 text-foreground">
+            <Activity className="w-7 h-7 text-primary" /> Quick Actions
           </CardTitle>
-          <CardDescription className="font-body">
+          <CardDescription className="font-body text-muted-foreground">
             Navigate to patient lists and management tools.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col sm:flex-row gap-4">
-          <Button asChild variant="default" size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90">
+        <CardContent className="flex flex-col sm:flex-row gap-4 pt-2">
+          <Button asChild variant="default" size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 text-base rounded-lg shadow-md hover:shadow-lg transition-all">
             <Link href="/dashboard/doctor/awaiting-review">
               <ListFilter className="mr-2 h-5 w-5" /> View Patients Requiring Action
             </Link>
           </Button>
-          <Button asChild variant="outline" size="lg">
+          <Button asChild variant="outline" size="lg" className="text-base rounded-lg shadow-md hover:shadow-lg transition-all">
             <Link href="/dashboard/doctor/view-all-patients">
               <Users className="mr-2 h-5 w-5" /> View All Patient Records
             </Link>
@@ -202,5 +210,3 @@ export default function DoctorDashboardPage() {
     </div>
   );
 }
-
-    

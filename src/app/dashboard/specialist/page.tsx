@@ -3,25 +3,23 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { ListChecks, MessageSquare, Send, UserCheck, Users, AlertTriangle, ArrowLeft, Eye, Clock } from 'lucide-react';
+import { ListChecks, UserCheck, AlertTriangle, Eye, Clock, GraduationCap } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, Timestamp, orderBy } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface PatientForSpecialistList {
-  id: string; // Firestore document ID for the patient
+  id: string; 
   patientName: string;
   patientAge: string;
-  registrationDateTime: Timestamp; // Patient's registration time for sorting
-  feedbackStatus: string; // Should be 'Pending Specialist Consultation'
-  consultationRequestId?: string; // ID of the first pending consultation request
-  requestDetails?: string; // Snippet of request details
+  registrationDateTime: Timestamp; 
+  feedbackStatus: string; 
+  consultationRequestId?: string; 
+  requestDetails?: string; 
   requestingDoctorName?: string;
 }
 
@@ -46,12 +44,11 @@ export default function SpecialistDashboardPage() {
       setLoading(true);
       setError(null);
       try {
-        // 1. Fetch patients with 'Pending Specialist Consultation' status
         const patientsCollectionRef = collection(db, 'patients');
         const qPatients = query(
           patientsCollectionRef,
           where('feedbackStatus', '==', 'Pending Specialist Consultation'),
-          orderBy('registrationDateTime', 'desc') // Or orderBy last consultation request time
+          orderBy('registrationDateTime', 'desc') 
         );
 
         const patientsSnapshot = await getDocs(qPatients);
@@ -59,21 +56,14 @@ export default function SpecialistDashboardPage() {
 
         for (const patientDoc of patientsSnapshot.docs) {
           const patientData = patientDoc.data();
-          // 2. For each such patient, find their pending consultation request(s)
-          //    For simplicity, we'll just fetch the latest one for display on the dashboard.
-          //    A more robust solution might assign specialists or let them pick.
           const consultationsQuery = query(
             collection(db, "patients", patientDoc.id, "specialistConsultations"),
             where("status", "==", "Pending Specialist Review"),
             orderBy("requestedAt", "desc"),
-            // limit(1) // To get the most recent one for the dashboard card
           );
           const consultationSnapshot = await getDocs(consultationsQuery);
           
           if (!consultationSnapshot.empty) {
-            // In a real scenario, a specialist might be assigned or pick.
-            // Here, we'll just list the patient if *any* pending request exists.
-            // We'll pass the first pending request ID to the patient detail page.
             const firstPendingRequest = consultationSnapshot.docs[0].data();
             fetchedPatients.push({
               id: patientDoc.id,
@@ -81,7 +71,7 @@ export default function SpecialistDashboardPage() {
               patientAge: patientData.patientAge,
               registrationDateTime: patientData.registrationDateTime,
               feedbackStatus: patientData.feedbackStatus,
-              consultationRequestId: consultationSnapshot.docs[0].id, // ID of the consultation doc
+              consultationRequestId: consultationSnapshot.docs[0].id, 
               requestDetails: firstPendingRequest.requestDetails,
               requestingDoctorName: firstPendingRequest.requestingDoctorName,
             });
@@ -105,56 +95,65 @@ export default function SpecialistDashboardPage() {
   }, [currentUser, authLoading]);
 
   return (
-    <div className="container mx-auto py-8 px-4">
-       <div className="flex items-center gap-3 mb-6">
-        <UserCheck className="h-8 w-8 text-primary" />
-        <h1 className="text-3xl font-headline">Specialist Portal - Welcome Dr. {specialistName || <Skeleton className="h-8 w-32 inline-block"/>}</h1>
+    <div className="container mx-auto py-10 px-4">
+       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-4">
+        <div>
+          <h1 className="text-4xl font-headline text-foreground flex items-center gap-3">
+            <GraduationCap className="w-10 h-10 text-primary"/>
+            Specialist Portal
+          </h1>
+          <p className="text-lg text-muted-foreground font-body">Welcome, Dr. {specialistName || <Skeleton className="h-8 w-32 inline-block"/>}! Review consultation requests.</p>
+        </div>
       </div>
 
       {error && (
-        <Card className="mb-6 border-destructive bg-destructive/10">
+        <Card className="mb-8 border-destructive bg-destructive/10 rounded-lg">
           <CardHeader><CardTitle className="text-destructive flex items-center gap-2"><AlertTriangle /> Error Loading Data</CardTitle></CardHeader>
           <CardContent><p className="text-destructive">{error}</p></CardContent>
         </Card>
       )}
 
-      <Card className="shadow-xl">
+      <Card className="shadow-xl rounded-xl">
         <CardHeader>
-          <CardTitle className="text-2xl font-headline flex items-center gap-2"><ListChecks className="w-6 h-6" /> Patients Awaiting Specialist Consultation</CardTitle>
-          <CardDescription className="font-body">
+          <CardTitle className="text-2xl font-headline flex items-center gap-2 text-foreground">
+            <ListChecks className="w-7 h-7 text-primary" /> Patients Awaiting Specialist Consultation
+          </CardTitle>
+          <CardDescription className="font-body text-muted-foreground">
             Review cases referred by doctors for your expert feedback.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-           {authLoading || loading ? (
-            <div className="space-y-2">
-              {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-md" />)}
+        <CardContent className="pt-2">
+           {(authLoading || loading) ? (
+            <div className="space-y-4 mt-4">
+              {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-lg" />)}
             </div>
           ) : patientsForReview.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">No patients currently awaiting your specialist review.</p>
+            <p className="text-muted-foreground text-center py-8">No patients currently awaiting your specialist review.</p>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-6 mt-4">
               {patientsForReview.map(patient => (
-                <Card key={patient.id} className="bg-secondary/30 hover:shadow-md transition-shadow">
-                   <CardHeader>
+                <Card key={patient.id} className="bg-card hover:shadow-lg transition-shadow duration-300 rounded-lg border border-border">
+                   <CardHeader className="pb-3">
                         <div className="flex flex-col sm:flex-row justify-between items-start">
-                            <CardTitle className="text-lg font-headline">
+                            <CardTitle className="text-xl font-headline text-primary">
                                 {patient.patientName}
-                                <span className="text-sm font-normal text-muted-foreground ml-2">(Age: {patient.patientAge})</span>
+                                <span className="text-base font-normal text-muted-foreground ml-2">(Age: {patient.patientAge})</span>
                             </CardTitle>
-                            <Badge variant="destructive" className="mt-1 sm:mt-0"><Clock className="w-3.5 h-3.5 mr-1.5"/>{patient.feedbackStatus}</Badge>
+                            <Badge variant="outline" className="mt-1 sm:mt-0 border-orange-500 text-orange-600 bg-orange-500/10">
+                                <Clock className="w-4 h-4 mr-1.5"/>{patient.feedbackStatus}
+                            </Badge>
                         </div>
-                        <CardDescription className="text-xs font-body">
+                        <CardDescription className="text-xs font-body text-muted-foreground pt-1">
                             Registered: {patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleDateString() : 'N/A'}
                             <br />
                             Requested by: Dr. {patient.requestingDoctorName || 'N/A'}
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <p className="text-sm font-body line-clamp-2 mb-3">
-                            <span className="font-semibold">Request: </span>{patient.requestDetails || "No details provided."}
+                    <CardContent className="pt-0 pb-4">
+                        <p className="text-sm font-body text-foreground line-clamp-3 mb-4">
+                            <span className="font-semibold text-muted-foreground">Request Details: </span>{patient.requestDetails || "No specific details provided."}
                         </p>
-                        <Button asChild size="sm">
+                        <Button asChild size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-md">
                             <Link href={`/dashboard/specialist/patient/${patient.id}?consultationRequestId=${patient.consultationRequestId}`}>
                                 <Eye className="mr-2 h-4 w-4" /> View Case & Provide Feedback
                             </Link>
@@ -169,5 +168,3 @@ export default function SpecialistDashboardPage() {
     </div>
   );
 }
-
-    
