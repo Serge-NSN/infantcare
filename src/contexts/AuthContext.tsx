@@ -45,7 +45,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       await firebaseSignOut(auth);
       // User will be null due to onAuthStateChanged, no need to setCurrentUser here
-      router.push("/login"); // Redirect to login page after logout
+      router.push("/"); // Redirect to homepage after logout
     } catch (error) {
       console.error("Error signing out: ", error);
       // Handle logout error (e.g., show a toast)
