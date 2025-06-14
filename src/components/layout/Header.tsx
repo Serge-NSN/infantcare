@@ -1,9 +1,8 @@
-
 // src/components/layout/Header.tsx
 "use client";
 
 import Link from 'next/link';
-import { Menu, X, Stethoscope, LogOut, LogIn, UserPlus, LayoutDashboard, User, BookOpen, Mail, HelpCircle, UserCog, PlusCircle, ListOrdered, FileSearch } from 'lucide-react';
+import { Menu, X, Stethoscope, LogOut, LogIn, UserPlus, LayoutDashboard, User, BookOpen, Mail, HelpCircle, UserCog, PlusCircle, ListOrdered, FileSearch, ShieldCheck, Users2, Settings2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
@@ -21,7 +20,7 @@ import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import type { DocumentData } from "firebase/firestore";
 import { getDashboardLink } from '@/lib/utils/getDashboardLink'; 
-import { NotificationBell } from './NotificationBell'; // Import NotificationBell
+import { NotificationBell } from './NotificationBell';
 
 const Logo = () => (
   <Link href="/" className="flex items-center gap-2">
@@ -90,8 +89,6 @@ export function Header() {
                     setUserProfile({ role: storedRole, fullName: storedFullName || storedEmail, email: storedEmail });
                 }
             }
-          } else {
-             // await logout(); // Commenting out for now to prevent logout loops on minor errors
           }
         } finally {
           setProfileLoading(false);
@@ -121,7 +118,7 @@ export function Header() {
     { href: '/help', label: 'Help', icon: HelpCircle, mobileIcon: <HelpCircle className="mr-2 h-4 w-4" /> },
   ];
   
-  const authenticatedBaseNavItems: NavItem[] = [
+  let authenticatedBaseNavItems: NavItem[] = [
      { href: dashboardHref, label: 'Dashboard', icon: LayoutDashboard, mobileIcon: <LayoutDashboard className="mr-2 h-4 w-4" /> },
   ];
   
@@ -136,7 +133,14 @@ export function Header() {
       { href: '/dashboard/doctor/awaiting-review', label: 'Awaiting Review', icon: PlusCircle, mobileIcon: <PlusCircle className="mr-2 h-4 w-4" /> },
       { href: '/dashboard/doctor/view-all-patients', label: 'All Patients', icon: ListOrdered, mobileIcon: <ListOrdered className="mr-2 h-4 w-4" /> }
     );
+  } else if (currentUser && userProfile?.role === 'Admin') {
+    authenticatedBaseNavItems = [ // Admin gets a different set of primary nav links
+        { href: '/dashboard/admin', label: 'Admin Dashboard', icon: ShieldCheck, mobileIcon: <ShieldCheck className="mr-2 h-4 w-4" /> },
+        { href: '/dashboard/admin/view-all-patients', label: 'All Patients', icon: ListOrdered, mobileIcon: <ListOrdered className="mr-2 h-4 w-4" /> },
+        { href: '/dashboard/admin/view-all-users', label: 'All Users', icon: Users2, mobileIcon: <Users2 className="mr-2 h-4 w-4" /> },
+    ];
   }
+
 
   if (currentUser) {
     authenticatedBaseNavItems.push({ href: '/help', label: 'Help', icon: HelpCircle, mobileIcon: <HelpCircle className="mr-2 h-4 w-4" /> });
@@ -222,7 +226,10 @@ export function Header() {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href={dashboardHref}> <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard </Link>
+                    <Link href={dashboardHref}> 
+                      {userProfile.role === 'Admin' ? <ShieldCheck className="mr-2 h-4 w-4" /> : <LayoutDashboard className="mr-2 h-4 w-4" /> }
+                      Dashboard 
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/profile"> <UserCog className="mr-2 h-4 w-4" /> Modify Profile </Link>

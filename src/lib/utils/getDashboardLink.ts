@@ -14,6 +14,8 @@ export function getDashboardLink(role: string | null | undefined): string {
       return "/dashboard/doctor";
     case "Specialist":
       return "/dashboard/specialist";
+    case "Admin":
+      return "/dashboard/admin";
     default:
       return "/"; // Fallback to homepage or a generic dashboard if role is unrecognized
   }
