@@ -310,16 +310,20 @@ export default function DoctorPatientDetailPage() {
   const getStatusBadgeVariant = (status: string) => {
     if (status === 'Pending Doctor Review') return 'destructive';
     if (status === 'Reviewed by Doctor') return 'secondary'; 
-    if (status === 'Pending Specialist Consultation') return 'outline'; // Use a different color, e.g., orange/yellow
-    if (status === 'Specialist Feedback Provided') return 'default'; // e.g., purple or similar
+    if (status === 'Pending Specialist Consultation') return 'outline';
+    if (status === 'Specialist Feedback Provided') return 'default';
     return 'outline';
   };
   
-  const getSpecialistConsultationStatusColor = (status: SpecialistConsultationRequest['status']) => {
-    if (status === 'Pending Specialist Review') return 'text-yellow-600';
-    if (status === 'Feedback Provided by Specialist') return 'text-green-600';
-    return 'text-muted-foreground';
-  }
+  const getSpecialistConsultationStatusBadgeProps = (status: SpecialistConsultationRequest['status']) => {
+    if (status === 'Pending Specialist Review') {
+      return { variant: 'outline' as const, className: 'text-yellow-600 border-yellow-500/70 dark:border-yellow-600/70' };
+    }
+    if (status === 'Feedback Provided by Specialist') {
+      return { variant: 'default' as const, className: 'bg-green-600 hover:bg-green-600/90 text-primary-foreground border-green-600' };
+    }
+    return { variant: 'outline' as const, className: 'text-muted-foreground' };
+  };
 
   const DetailItem = ({ label, value, icon: IconComponent }: { label: string; value?: string | string[] | null; icon?: React.ElementType }) => (
     <div className="mb-3">
@@ -346,8 +350,6 @@ export default function DoctorPatientDetailPage() {
     }
     setIsGeneratingPdf(true);
     try {
-      // For PDF, we might want to pass specialist consultations too.
-      // The generatePatientPdf function needs to be updated to handle this.
       await generatePatientPdf(patient, feedbacks, testRequests, {
         displayName: currentUser.displayName,
         email: currentUser.email,
@@ -530,11 +532,10 @@ export default function DoctorPatientDetailPage() {
                  <FeedbackList feedbacks={feedbacks} isLoading={loadingFeedbacks} title="Your Feedback History" />
                  <TestRequestList requests={testRequests} isLoading={loadingTestRequests} title="Test Request History" userRole="doctor" />
                  
-                 {/* Specialist Consultations Section */}
                 <Card className="shadow-md">
                     <CardHeader>
                         <CardTitle className="text-xl font-headline flex items-center gap-2">
-                        <GraduationCap className="w-5 h-5 text-purple-600" /> Specialist Consultations
+                        <GraduationCap className="w-5 h-5 text-purple-600 dark:text-purple-400" /> Specialist Consultations
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -543,14 +544,16 @@ export default function DoctorPatientDetailPage() {
                         ) : specialistConsultations.length === 0 ? (
                             <p className="text-sm text-muted-foreground italic">No specialist consultations requested for this patient yet.</p>
                         ) : (
-                        specialistConsultations.map(consult => (
+                        specialistConsultations.map(consult => {
+                            const badgeProps = getSpecialistConsultationStatusBadgeProps(consult.status);
+                            return (
                             <Card key={consult.id} className="bg-purple-500/10 border-purple-500/30">
                                 <CardHeader>
                                     <div className="flex justify-between items-start">
                                         <CardTitle className="text-md font-semibold">
                                             Consultation requested on: {consult.requestedAt?.toDate ? new Date(consult.requestedAt.toDate()).toLocaleDateString() : 'N/A'}
                                         </CardTitle>
-                                        <Badge variant={consult.status === 'Pending Specialist Review' ? 'outline' : 'default'} className={getSpecialistConsultationStatusColor(consult.status)}>
+                                        <Badge variant={badgeProps.variant} className={badgeProps.className}>
                                             {consult.status}
                                         </Badge>
                                     </div>
@@ -563,12 +566,13 @@ export default function DoctorPatientDetailPage() {
                                     {consult.status === 'Feedback Provided by Specialist' && (
                                     <div>
                                         <p className="font-medium text-muted-foreground">Specialist (Dr. {consult.specialistName || 'N/A'}) Feedback ({consult.feedbackProvidedAt?.toDate ? new Date(consult.feedbackProvidedAt.toDate()).toLocaleDateString() : 'N/A'}):</p>
-                                        <p className="whitespace-pre-wrap p-2 border rounded-md bg-background text-green-700">{consult.specialistFeedback}</p>
+                                        <p className="whitespace-pre-wrap p-2 border rounded-md bg-background text-green-700 dark:text-green-400">{consult.specialistFeedback}</p>
                                     </div>
                                     )}
                                 </CardContent>
                             </Card>
-                        )))}
+                        );
+                        }))}
                     </CardContent>
                 </Card>
 
@@ -626,7 +630,7 @@ export default function DoctorPatientDetailPage() {
                         onConsultationRequested={() => fetchPatientData()} // Re-fetch to update list and status
                     />
                      <EmailButton
-                        receiverEmail="specialist@example.cm" // Generic, replace if actual specialist emails are stored
+                        receiverEmail="specialist@example.com" // Generic, replace if actual specialist emails are stored
                         subject={`Regarding Patient: ${patient.patientName} (ID: ${patient.patientId}) - Follow-up`}
                         body={`Dear Specialist,\n\nFollowing up on the consultation for patient ${patient.patientName} (ID: ${patient.patientId}).\n\n...\n\nThank you,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
                         buttonText="Email Specialist (General Follow-up)"
@@ -659,5 +663,3 @@ export default function DoctorPatientDetailPage() {
     </div>
   );
 }
-
-    

@@ -180,6 +180,16 @@ export default function SpecialistPatientFeedbackPage() {
     </div>
   );
 
+  const getSpecialistConsultationStatusBadgeProps = (status: SpecialistConsultationRequest['status']) => {
+    if (status === 'Pending Specialist Review') {
+      return { variant: 'outline' as const, className: 'text-yellow-600 border-yellow-500/70 dark:border-yellow-600/70' };
+    }
+    if (status === 'Feedback Provided by Specialist') {
+      return { variant: 'default' as const, className: 'bg-green-600 hover:bg-green-600/90 text-primary-foreground border-green-600' };
+    }
+    return { variant: 'outline' as const, className: 'text-muted-foreground' }; // Default for other statuses (e.g. Archived)
+  };
+
   const overallLoading = authLoading || loadingData;
 
   if (overallLoading) {
@@ -218,6 +228,7 @@ export default function SpecialistPatientFeedbackPage() {
       </div>
     );
   }
+  const badgeProps = getSpecialistConsultationStatusBadgeProps(consultationRequest.status);
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -238,7 +249,7 @@ export default function SpecialistPatientFeedbackPage() {
                         <CardDescription className="font-body">
                         Patient ID: {patient.patientId} &bull; Age: {patient.patientAge} &bull; Gender: {patient.patientGender}
                         </CardDescription>
-                        <Badge variant={consultationRequest.status === 'Pending Specialist Review' ? "destructive" : "default"} className="mt-2">
+                        <Badge variant={badgeProps.variant} className={`mt-2 ${badgeProps.className}`}>
                             {consultationRequest.status}
                         </Badge>
                     </div>
@@ -246,7 +257,7 @@ export default function SpecialistPatientFeedbackPage() {
               </CardHeader>
               <CardContent className="space-y-6 pt-0">
                 <Card className="p-4 bg-secondary/30">
-                    <CardTitle className="text-xl font-headline mb-3 flex items-center"><MessageCircleQuestion className="mr-2 h-5 w-5 text-blue-600" />Doctor's Consultation Request</CardTitle>
+                    <CardTitle className="text-xl font-headline mb-3 flex items-center"><MessageCircleQuestion className="mr-2 h-5 w-5 text-blue-600 dark:text-blue-400" />Doctor's Consultation Request</CardTitle>
                     <DetailItem label="Requesting Doctor" value={`Dr. ${consultationRequest.requestingDoctorName}`} icon={UserCheck}/>
                     <DetailItem label="Requested On" value={consultationRequest.requestedAt?.toDate ? new Date(consultationRequest.requestedAt.toDate()).toLocaleString('en-US') : 'N/A'} icon={CalendarDays}/>
                     <div className="mt-2">
@@ -257,12 +268,12 @@ export default function SpecialistPatientFeedbackPage() {
 
                 {consultationRequest.status === 'Feedback Provided by Specialist' && consultationRequest.specialistFeedback && (
                      <Card className="p-4 bg-green-500/10 border-green-500/30">
-                        <CardTitle className="text-xl font-headline mb-3 flex items-center"><GraduationCap className="mr-2 h-5 w-5 text-green-700" />Your Submitted Feedback</CardTitle>
+                        <CardTitle className="text-xl font-headline mb-3 flex items-center"><GraduationCap className="mr-2 h-5 w-5 text-green-600 dark:text-green-400" />Your Submitted Feedback</CardTitle>
                         <DetailItem label="Feedback By" value={`Dr. ${consultationRequest.specialistName || 'N/A'}`} icon={UserCheck}/>
                         <DetailItem label="Provided On" value={consultationRequest.feedbackProvidedAt?.toDate ? new Date(consultationRequest.feedbackProvidedAt.toDate()).toLocaleString('en-US') : 'N/A'} icon={CalendarDays}/>
                         <div className="mt-2">
                             <p className="text-sm font-semibold text-muted-foreground">Feedback Notes:</p>
-                            <p className="text-sm text-green-700 whitespace-pre-wrap p-2 border rounded-md bg-background">{consultationRequest.specialistFeedback}</p>
+                            <p className="text-sm text-green-700 dark:text-green-400 whitespace-pre-wrap p-2 border rounded-md bg-background">{consultationRequest.specialistFeedback}</p>
                         </div>
                     </Card>
                 )}
@@ -349,5 +360,3 @@ export default function SpecialistPatientFeedbackPage() {
     </div>
   );
 }
-
-    
