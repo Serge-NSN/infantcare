@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { MedicalTermInput } from "@/components/shared/MedicalTermInput";
 import { useToast } from "@/hooks/use-toast";
-import { Save, FileText, Loader2, Wifi } from "lucide-react";
+import { Save, FileText, Loader2, Wifi, Microscope, Activity, FolderOpen } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, updateDoc, doc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,11 +38,14 @@ const patientRegistrationSchema = z.object({
   patientName: z.string().min(2, "Patient name is required."),
   patientAge: z.string().min(1, "Patient age is required (e.g., 3 months, 1 year)."),
   patientGender: z.enum(["Male", "Female", "Other"], { required_error: "Gender is required." }),
-  patientAddress: z.string().min(5, "Address is required."),
-  patientPhoneNumber: z.string().min(9, "Valid phone number is required (e.g., +237 6XXXXXXXX)."),
+  patientAddress: z.string().min(5, "Address is required. e.g., Nlongkak Quarter, Yaounde"),
+  patientPhoneNumber: z.string().min(9, "Valid phone number is required (e.g., 6XX XXX XXX)."),
   previousDiseases: z.string().optional().default(""),
   currentMedications: z.string().optional().default(""),
-  patientFiles: z.custom<FileList>().optional(),
+  generalMedicalFiles: z.custom<FileList>().optional(), // Existing files, renamed for clarity
+  labResultFiles: z.custom<FileList>().optional(),
+  ecgResultFiles: z.custom<FileList>().optional(),
+  otherMedicalFiles: z.custom<FileList>().optional(),
 });
 
 type PatientRegistrationFormValues = z.infer<typeof patientRegistrationSchema>;
@@ -58,7 +61,10 @@ export interface PatientDataForForm {
   patientPhoneNumber: string;
   previousDiseases?: string;
   currentMedications?: string;
-  uploadedFileNames?: string[];
+  uploadedFileNames?: string[]; // For generalMedicalFiles
+  labResultUrls?: string[];
+  ecgResultUrls?: string[];
+  otherMedicalFileUrls?: string[];
   caregiverName?: string;
 }
 
@@ -99,6 +105,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
         patientPhoneNumber: patientToEdit.patientPhoneNumber,
         previousDiseases: patientToEdit.previousDiseases || "",
         currentMedications: patientToEdit.currentMedications || "",
+        // File fields are not pre-filled directly, existing files are shown separately
       };
       form.reset(formData);
     }
@@ -129,6 +136,21 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
     }
   }
 
+  async function processFiles(fileList: FileList | undefined | null): Promise<string[]> {
+    const uploadedUrls: string[] = [];
+    if (fileList && fileList.length > 0) {
+      for (let i = 0; i < fileList.length; i++) {
+        const file = fileList[i];
+        const url = await uploadFileToCloudinary(file);
+        if (url) {
+          uploadedUrls.push(url);
+        }
+      }
+    }
+    return uploadedUrls;
+  }
+
+
   async function onSubmit(data: PatientRegistrationFormValues) {
     if (!currentUser) {
       toast({
@@ -140,21 +162,15 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
     }
 
     setIsUploading(true);
-    const uploadedImageUrls: string[] = [];
-    if (data.patientFiles && data.patientFiles.length > 0) {
-      for (let i = 0; i < data.patientFiles.length; i++) {
-        const file = data.patientFiles[i];
-        const url = await uploadFileToCloudinary(file);
-        if (url) {
-          uploadedImageUrls.push(url);
-        }
-      }
-    }
+    const generalMedicalUrls = await processFiles(data.generalMedicalFiles);
+    const labResultUrls = await processFiles(data.labResultFiles);
+    const ecgResultUrls = await processFiles(data.ecgResultFiles);
+    const otherMedicalFileUrls = await processFiles(data.otherMedicalFiles);
     setIsUploading(false);
 
     try {
       if (isEditMode && patientToEdit) {
-        const updatedPatientData: Omit<Partial<PatientDataForForm>, 'id' | 'hospitalId' | 'caregiverName'> & { updatedAt: Timestamp; uploadedFileNames: string[] } = {
+        const updatedPatientData: Omit<Partial<PatientDataForForm>, 'id' | 'hospitalId' | 'caregiverName'> & { updatedAt: Timestamp } = {
           hospitalName: data.hospitalName,
           patientName: data.patientName,
           patientAge: data.patientAge,
@@ -163,7 +179,10 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
           patientPhoneNumber: data.patientPhoneNumber,
           previousDiseases: data.previousDiseases,
           currentMedications: data.currentMedications,
-          uploadedFileNames: [...new Set([...(patientToEdit.uploadedFileNames || []), ...uploadedImageUrls])],
+          uploadedFileNames: [...new Set([...(patientToEdit.uploadedFileNames || []), ...generalMedicalUrls])],
+          labResultUrls: [...new Set([...(patientToEdit.labResultUrls || []), ...labResultUrls])],
+          ecgResultUrls: [...new Set([...(patientToEdit.ecgResultUrls || []), ...ecgResultUrls])],
+          otherMedicalFileUrls: [...new Set([...(patientToEdit.otherMedicalFileUrls || []), ...otherMedicalFileUrls])],
           updatedAt: serverTimestamp() as Timestamp,
         };
         
@@ -197,7 +216,10 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
           registrationDateTime: serverTimestamp(),
           feedbackStatus: 'Pending Doctor Review',
           createdAt: serverTimestamp(),
-          uploadedFileNames: uploadedImageUrls,
+          uploadedFileNames: generalMedicalUrls,
+          labResultUrls: labResultUrls,
+          ecgResultUrls: ecgResultUrls,
+          otherMedicalFileUrls: otherMedicalFileUrls,
         };
         
         const newPatientRef = await addDoc(collection(db, "patients"), patientDataForCreate);
@@ -205,7 +227,12 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
           title: "Patient Registration Successful",
           description: `${data.patientName} (ID: ${generatedPatientId}) has been registered. Hospital ID: ${generatedHospitalId}`,
         });
-        form.reset(defaultValues);
+        form.reset(defaultValues); // Reset form fields
+        // Also explicitly reset file input fields if react-hook-form doesn't clear them by default
+        form.setValue('generalMedicalFiles', undefined);
+        form.setValue('labResultFiles', undefined);
+        form.setValue('ecgResultFiles', undefined);
+        form.setValue('otherMedicalFiles', undefined);
         router.push(`/dashboard/caregiver/patient/${newPatientRef.id}`);
       }
     } catch (error: any) {
@@ -225,6 +252,31 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
       });
     }
   }
+  
+  const renderExistingFiles = (fileUrls: string[] | undefined, categoryName: string) => {
+    if (!fileUrls || fileUrls.length === 0) return null;
+    return (
+      <div className="md:col-span-2 space-y-1 mt-1">
+        <p className="text-sm font-medium text-muted-foreground">Current {categoryName}:</p>
+        <ul className="list-disc list-inside text-xs text-muted-foreground p-2 border rounded-md bg-secondary/30">
+          {fileUrls.map((fileUrl, index) => {
+            let displayName = `File ${index + 1}`;
+            try {
+              const url = new URL(fileUrl);
+              const pathSegments = url.pathname.split('/');
+              displayName = decodeURIComponent(pathSegments[pathSegments.length - 1] || `File ${index + 1}`);
+            } catch (e) { /* Use default displayName */ }
+            return (
+              <li key={index} className="flex items-center">
+                <FileText className="h-3 w-3 mr-1.5 shrink-0" />
+                <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate max-w-xs sm:max-w-sm md:max-w-md">{displayName}</a>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    );
+  };
 
   const handleTelemonitoringClick = () => {
     toast({
@@ -325,7 +377,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
               <FormItem>
                 <FormLabel>Phone Number (Guardian)</FormLabel>
                 <FormControl>
-                  <Input type="tel" placeholder="+237 6XX XXX XXX" {...field} />
+                  <Input type="tel" placeholder="e.g., 6XX XXX XXX" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -363,57 +415,108 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
               </FormItem>
             )}
           />
-
-          {isEditMode && patientToEdit && patientToEdit.uploadedFileNames && patientToEdit.uploadedFileNames.length > 0 && (
-            <div className="md:col-span-2 space-y-2">
-              <FormLabel>Currently Uploaded Files</FormLabel>
-              <ul className="list-disc list-inside text-sm text-muted-foreground p-2 border rounded-md bg-secondary/30">
-                {patientToEdit.uploadedFileNames.map((fileUrl, index) => {
-                    let displayName = `Cloudinary Image ${index + 1}`;
-                    try {
-                        const urlParts = fileUrl.split('/');
-                        displayName = urlParts[urlParts.length -1] || displayName;
-                    } catch (e) {}
-                  return (
-                    <li key={index} className="flex items-center">
-                      <FileText className="h-4 w-4 mr-2 shrink-0" />
-                       <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate max-w-xs">{displayName}</a>
-                    </li>
-                  );
-                })}
-              </ul>
-              <p className="text-xs text-muted-foreground">Upload new image files below to add them. Deleting files is not supported in this form.</p>
-            </div>
-          )}
-
-          <FormField
-            control={form.control}
-            name="patientFiles"
-            render={({ field: { onChange, value, ...rest } }) => (
-              <FormItem className="md:col-span-2">
-                <FormLabel>{isEditMode ? "Add More Image Files (Optional)" : "Upload Patient Images (Optional)"}</FormLabel>
-                <FormControl>
-                  <Input
-                    type="file"
-                    {...rest}
-                    onChange={(e) => onChange(e.target.files)}
-                    multiple
-                    accept="image/jpeg, image/png, image/gif, image/webp"
-                  />
-                </FormControl>
-                <FormMessage />
-                <p className="text-xs text-muted-foreground">Only image files are accepted. You can select multiple files. Images will be uploaded to Cloudinary.</p>
-              </FormItem>
-            )}
-          />
         </div>
-        <div className="flex flex-col sm:flex-row gap-4">
+
+        <div className="space-y-6 pt-4 border-t">
+            <h3 className="text-lg font-medium text-primary flex items-center"><FolderOpen className="mr-2 h-5 w-5"/> Upload Medical Files (Optional)</h3>
+            
+            <FormField
+                control={form.control}
+                name="generalMedicalFiles"
+                render={({ field: { onChange, value, ...rest } }) => (
+                <FormItem className="md:col-span-2">
+                    <FormLabel>General Medical Images/Files (e.g., X-rays, photos)</FormLabel>
+                    <FormControl>
+                    <Input
+                        type="file"
+                        {...rest}
+                        onChange={(e) => onChange(e.target.files)}
+                        multiple
+                        accept="image/*,application/pdf,.doc,.docx"
+                    />
+                    </FormControl>
+                    <FormMessage />
+                    {isEditMode && renderExistingFiles(patientToEdit?.uploadedFileNames, "General Medical Images/Files")}
+                    <p className="text-xs text-muted-foreground">Images, PDFs, Word documents. You can select multiple files.</p>
+                </FormItem>
+                )}
+            />
+
+            <FormField
+                control={form.control}
+                name="labResultFiles"
+                render={({ field: { onChange, value, ...rest } }) => (
+                <FormItem className="md:col-span-2">
+                    <FormLabel className="flex items-center"><Microscope className="mr-2 h-4 w-4 text-primary"/>Lab Results</FormLabel>
+                    <FormControl>
+                    <Input
+                        type="file"
+                        {...rest}
+                        onChange={(e) => onChange(e.target.files)}
+                        multiple
+                        accept="image/*,application/pdf"
+                    />
+                    </FormControl>
+                    <FormMessage />
+                    {isEditMode && renderExistingFiles(patientToEdit?.labResultUrls, "Lab Results")}
+                     <p className="text-xs text-muted-foreground">Images or PDF files. You can select multiple files.</p>
+                </FormItem>
+                )}
+            />
+
+            <FormField
+                control={form.control}
+                name="ecgResultFiles"
+                render={({ field: { onChange, value, ...rest } }) => (
+                <FormItem className="md:col-span-2">
+                    <FormLabel className="flex items-center"><Activity className="mr-2 h-4 w-4 text-primary"/>ECG Results</FormLabel>
+                    <FormControl>
+                    <Input
+                        type="file"
+                        {...rest}
+                        onChange={(e) => onChange(e.target.files)}
+                        multiple
+                        accept="image/*,application/pdf"
+                    />
+                    </FormControl>
+                    <FormMessage />
+                    {isEditMode && renderExistingFiles(patientToEdit?.ecgResultUrls, "ECG Results")}
+                    <p className="text-xs text-muted-foreground">Images or PDF files. You can select multiple files.</p>
+                </FormItem>
+                )}
+            />
+
+            <FormField
+                control={form.control}
+                name="otherMedicalFiles"
+                render={({ field: { onChange, value, ...rest } }) => (
+                <FormItem className="md:col-span-2">
+                    <FormLabel className="flex items-center"><FileText className="mr-2 h-4 w-4 text-primary"/>Other Medical Files</FormLabel>
+                    <FormControl>
+                    <Input
+                        type="file"
+                        {...rest}
+                        onChange={(e) => onChange(e.target.files)}
+                        multiple
+                        accept="image/*,application/pdf,.doc,.docx,.txt"
+                    />
+                    </FormControl>
+                    <FormMessage />
+                    {isEditMode && renderExistingFiles(patientToEdit?.otherMedicalFileUrls, "Other Medical Files")}
+                    <p className="text-xs text-muted-foreground">Any other relevant medical documents. You can select multiple files.</p>
+                </FormItem>
+                )}
+            />
+        </div>
+
+
+        <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t">
           <Button
             type="submit"
             className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground"
             disabled={form.formState.isSubmitting || isUploading || !currentUser}
           >
-            {form.formState.isSubmitting || isUploading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
+            {isUploading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
             {isUploading ? "Uploading files..." : (form.formState.isSubmitting ? (isEditMode ? "Saving..." : "Registering...") : (isEditMode ? "Save Changes" : "Register Patient"))}
           </Button>
           <Button
@@ -430,3 +533,4 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
     </Form>
   );
 }
+

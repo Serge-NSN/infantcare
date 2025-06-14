@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, Timestamp, collection, query, orderBy, onSnapshot, Unsubscribe } from 'firebase/firestore';
-import { ArrowLeft, UserCircle, Hospital, CalendarDays, Stethoscope, Microscope, FileText as FileIcon, Edit, AlertTriangle, Info, Fingerprint, UserCheck, MessageSquareText, FileScan, Download, Loader2, Wifi } from 'lucide-react';
+import { ArrowLeft, UserCircle, Hospital, CalendarDays, Stethoscope, Microscope, FileText as FileIcon, Edit, AlertTriangle, Info, Fingerprint, UserCheck, MessageSquareText, FileScan, Download, Loader2, Wifi, Activity, FolderOpen } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { FeedbackList, type FeedbackItem } from '@/components/dashboard/shared/FeedbackList';
@@ -23,8 +23,8 @@ import { generatePatientPdf } from '@/lib/utils/generatePatientPdf';
 interface PatientData {
   id: string;
   patientName: string;
-  patientId: string; // System-generated ID for patient record
-  hospitalId: string; // System-generated ID for hospital affiliation
+  patientId: string; 
+  hospitalId: string; 
   patientAge: string;
   patientGender: string;
   patientAddress: string;
@@ -32,7 +32,10 @@ interface PatientData {
   hospitalName: string;
   previousDiseases?: string;
   currentMedications?: string;
-  uploadedFileNames?: string[]; // Caregiver uploaded files (assumed to be URLs now)
+  uploadedFileNames?: string[]; // General medical files
+  labResultUrls?: string[];
+  ecgResultUrls?: string[];
+  otherMedicalFileUrls?: string[];
   registrationDateTime: Timestamp;
   feedbackStatus: string; 
   caregiverUid: string;
@@ -246,6 +249,86 @@ export default function CaregiverPatientDetailPage() {
     </div>
   );
 
+  const FileDisplayCard = ({ title, files, icon: Icon }: { title: string; files?: string[]; icon: React.ElementType }) => {
+    if (!files || files.length === 0) {
+      return (
+        <Card className="p-4 bg-secondary/30">
+          <CardTitle className="text-xl font-headline mb-3 flex items-center">
+            <Icon className="mr-2 h-5 w-5 text-primary" /> {title}
+          </CardTitle>
+          <p className="text-sm text-foreground">No {title.toLowerCase()} uploaded.</p>
+        </Card>
+      );
+    }
+    return (
+      <Card className="p-4 bg-secondary/30">
+        <CardTitle className="text-xl font-headline mb-3 flex items-center">
+          <Icon className="mr-2 h-5 w-5 text-primary" /> {title}
+        </CardTitle>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          {files.map((fileSrc, index) => {
+            const fileNameFromUrl = (typeof fileSrc === 'string' && fileSrc.startsWith('http'))
+              ? fileSrc.substring(fileSrc.lastIndexOf('/') + 1).split('?')[0] || 'File'
+              : (typeof fileSrc === 'string' && fileSrc.startsWith('data:image'))
+              ? `Embedded Image ${index + 1}`
+              : `File ${index + 1}`;
+
+            let showActualImage = false;
+            if (typeof fileSrc === 'string' && fileSrc.trim() !== '') {
+              if (fileSrc.startsWith('data:image')) {
+                showActualImage = true;
+              } else if (fileSrc.startsWith('http://') || fileSrc.startsWith('https://')) {
+                if ((/\.(jpe?g|png|gif|webp|pdf|doc|docx|txt)(\?|$)/i.test(fileSrc) || fileSrc.includes('cloudinary'))) {
+                    try {
+                        new URL(fileSrc); 
+                        showActualImage = (/\.(jpe?g|png|gif|webp)(\?|$)/i.test(fileSrc) || fileSrc.includes('cloudinary')); // Only show image previews
+                    } catch (e) {
+                        console.warn(`[Image Check] Malformed URL string in uploadedFileNames: ${fileSrc}`);
+                    }
+                }
+              }
+            }
+            const isImage = showActualImage; // for clarity
+
+            return (
+              <div key={index} className="flex flex-col items-center text-center p-2 border rounded-md bg-background shadow-sm">
+                {isImage && fileSrc ? (
+                  <Image
+                    src={fileSrc} 
+                    alt={fileNameFromUrl || 'Uploaded image'}
+                    width={150}
+                    height={150}
+                    className="rounded-md object-cover mb-1"
+                    data-ai-hint="medical scan" 
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://placehold.co/150x150.png?text=Error';
+                      (e.target as HTMLImageElement).alt = 'Error loading image';
+                    }}
+                  />
+                ) : (
+                  <a href={fileSrc} target="_blank" rel="noopener noreferrer" className="w-[150px] h-[150px] bg-muted rounded-md flex items-center justify-center mb-1 hover:bg-muted/80 transition-colors">
+                    <FileIcon className="h-16 w-16 text-muted-foreground" />
+                  </a>
+                )}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                       <a href={fileSrc} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate w-full max-w-[140px]">{fileNameFromUrl}</a>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{fileNameFromUrl}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+    );
+  };
+
+
   const latestFeedback = feedbacks.length > 0 ? feedbacks[0] : null; 
 
   return (
@@ -304,7 +387,7 @@ export default function CaregiverPatientDetailPage() {
               <DetailItem label="Hospital ID" value={patient.hospitalId} icon={Fingerprint} />
               <DetailItem 
                 label="Registered On" 
-                value={patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleString('en-US') : 'N/A'} 
+                value={patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'} 
                 icon={CalendarDays}
               />
               <DetailItem label="Registered By" value={patient.caregiverName} icon={UserCheck} />
@@ -323,72 +406,13 @@ export default function CaregiverPatientDetailPage() {
                     <DetailItem label="Current Medications" value={patient.currentMedications} />
                 </div>
             </Card>
+          </div>
+
+            <FileDisplayCard title="General Medical Images/Files" files={patient.uploadedFileNames} icon={FolderOpen} />
+            <FileDisplayCard title="Lab Results" files={patient.labResultUrls} icon={Microscope} />
+            <FileDisplayCard title="ECG Results" files={patient.ecgResultUrls} icon={Activity} />
+            <FileDisplayCard title="Other Uploaded Medical Files" files={patient.otherMedicalFileUrls} icon={FileIcon} />
             
-            <Card className="p-4 bg-secondary/30 md:col-span-2">
-              <CardTitle className="text-xl font-headline mb-3 flex items-center"><FileIcon className="mr-2 h-5 w-5 text-primary" />Uploaded Files by Caregiver</CardTitle>
-              {patient.uploadedFileNames && patient.uploadedFileNames.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {patient.uploadedFileNames.map((fileSrc, index) => {
-                    const fileNameFromUrl = (typeof fileSrc === 'string' && fileSrc.startsWith('http'))
-                      ? fileSrc.substring(fileSrc.lastIndexOf('/') + 1).split('?')[0] || 'File'
-                      : (typeof fileSrc === 'string' && fileSrc.startsWith('data:image'))
-                      ? `Embedded Image ${index + 1}`
-                      : `File ${index + 1}`;
-
-                    let showActualImage = false;
-                    if (typeof fileSrc === 'string' && fileSrc.trim() !== '') {
-                      if (fileSrc.startsWith('data:image')) {
-                        showActualImage = true;
-                      } else if (fileSrc.startsWith('http://') || fileSrc.startsWith('https://')) {
-                        if ((/\.(jpe?g|png|gif|webp)(\?|$)/i.test(fileSrc) || fileSrc.includes('cloudinary'))) {
-                            try {
-                                new URL(fileSrc); 
-                                showActualImage = true;
-                            } catch (e) {
-                                console.warn(`[Image Check] Malformed URL string in uploadedFileNames: ${fileSrc}`);
-                            }
-                        }
-                      }
-                    }
-
-                    return (
-                      <div key={index} className="flex flex-col items-center text-center p-2 border rounded-md bg-background shadow-sm">
-                        {showActualImage && fileSrc ? (
-                          <Image
-                            src={fileSrc} 
-                            alt={fileNameFromUrl || 'Uploaded image'}
-                            width={150}
-                            height={150}
-                            className="rounded-md object-cover mb-1"
-                            data-ai-hint="medical scan" 
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = 'https://placehold.co/150x150.png?text=Error';
-                              (e.target as HTMLImageElement).alt = 'Error loading image';
-                            }}
-                          />
-                        ) : (
-                          <div className="w-[150px] h-[150px] bg-muted rounded-md flex items-center justify-center mb-1">
-                            <FileIcon className="h-16 w-16 text-muted-foreground" />
-                          </div>
-                        )}
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <p className="text-xs text-foreground truncate w-full max-w-[140px]">{fileNameFromUrl}</p>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{fileNameFromUrl}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-foreground">No files uploaded by you.</p>
-              )}
-            </Card>
              <div className="md:col-span-2">
                 <FeedbackList feedbacks={feedbacks} isLoading={loadingFeedbacks} title="Doctor Feedback History" />
              </div>
@@ -401,13 +425,13 @@ export default function CaregiverPatientDetailPage() {
                     onFulfillClick={(requestId) => router.push(`/dashboard/caregiver/test-requests?patientId=${patient.id}&requestId=${requestId}`)}
                 />
              </div>
-          </div>
         </CardContent>
         <CardFooter className="text-xs text-muted-foreground">
-          Patient record last formally updated: {patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleDateString() : 'N/A'}
-          {latestFeedback?.createdAt?.toDate && ` (Latest doctor feedback: ${new Date(latestFeedback.createdAt.toDate()).toLocaleDateString()})`}
+          Patient record last formally updated: {patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}
+          {latestFeedback?.createdAt?.toDate && ` (Latest doctor feedback: ${new Date(latestFeedback.createdAt.toDate()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })})`}
         </CardFooter>
       </Card>
     </div>
   );
 }
+

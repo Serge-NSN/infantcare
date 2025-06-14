@@ -24,12 +24,13 @@ interface PatientFirestoreData {
   patientGender: "Male" | "Female" | "Other";
   patientAddress: string;
   patientPhoneNumber: string;
-  // patientReligion?: string; // Removed
   hospitalName: string;
   previousDiseases?: string;
   currentMedications?: string;
-  // insuranceDetails?: string; // Removed
   uploadedFileNames?: string[];
+  labResultUrls?: string[];
+  ecgResultUrls?: string[];
+  otherMedicalFileUrls?: string[];
   registrationDateTime: Timestamp;
   feedbackStatus: string;
   caregiverUid: string;
@@ -79,6 +80,9 @@ export default function EditPatientPage() {
               previousDiseases: data.previousDiseases || "",
               currentMedications: data.currentMedications || "",
               uploadedFileNames: data.uploadedFileNames || [],
+              labResultUrls: data.labResultUrls || [],
+              ecgResultUrls: data.ecgResultUrls || [],
+              otherMedicalFileUrls: data.otherMedicalFileUrls || [],
             };
             setPatientDataForForm(transformedData);
             setPageTitle(`Edit Information for ${data.patientName}`);
@@ -108,7 +112,7 @@ export default function EditPatientPage() {
             <Skeleton className="h-5 w-3/4" />
           </CardHeader>
           <CardContent className="space-y-4">
-            {[...Array(5)].map((_, i) => ( // Reduced array items
+            {[...Array(5)].map((_, i) => ( 
               <div key={i} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />
@@ -177,3 +181,4 @@ export default function EditPatientPage() {
     </div>
   );
 }
+
