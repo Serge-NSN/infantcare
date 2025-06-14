@@ -97,7 +97,7 @@ export default function DoctorDashboardPage() {
                 </CardTitle>
             </CardHeader>
             <CardContent className="pt-4">
-                <p className={`text-5xl font-bold ${colorClass}`}>{loadingStats ? <Skeleton className="h-12 w-1/2 inline-block" /> : value}</p>
+                <div className={`text-5xl font-bold ${colorClass}`}>{loadingStats ? <Skeleton className="h-12 w-1/2 inline-block" /> : value}</div>
                 <CardDescription className="mt-1 text-muted-foreground">{description}</CardDescription>
                  {linkText && <p className={`text-sm ${colorClass} hover:underline mt-3 font-semibold`}>{linkText} &rarr;</p>}
             </CardContent>
@@ -111,7 +111,7 @@ export default function DoctorDashboardPage() {
                 </CardTitle>
             </CardHeader>
             <CardContent className="pt-4">
-                <p className={`text-5xl font-bold ${colorClass}`}>{loadingStats ? <Skeleton className="h-12 w-1/2 inline-block" /> : value}</p>
+                <div className={`text-5xl font-bold ${colorClass}`}>{loadingStats ? <Skeleton className="h-12 w-1/2 inline-block" /> : value}</div>
                 <CardDescription className="mt-1 text-muted-foreground">{description}</CardDescription>
             </CardContent>
         </>
