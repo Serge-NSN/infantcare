@@ -102,7 +102,7 @@ export default function SpecialistDashboardPage() {
             <GraduationCap className="w-10 h-10 text-primary"/>
             Specialist Portal
           </h1>
-          <p className="text-lg text-muted-foreground font-body">Welcome, Dr. {specialistName || <Skeleton className="h-8 w-32 inline-block"/>}! Review consultation requests.</p>
+          <div className="text-lg text-muted-foreground font-body">Welcome, Dr. {specialistName || <Skeleton className="h-8 w-32 inline-block"/>}! Review consultation requests.</div>
         </div>
       </div>
 

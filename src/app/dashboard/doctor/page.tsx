@@ -139,7 +139,7 @@ export default function DoctorDashboardPage() {
             <BriefcaseMedical className="w-10 h-10 text-primary"/>
             Doctor's Portal
           </h1>
-          <p className="text-lg text-muted-foreground font-body">Welcome, Dr. {doctorName || <Skeleton className="h-8 w-40 inline-block" />}! Your medical overview.</p>
+          <div className="text-lg text-muted-foreground font-body">Welcome, Dr. {doctorName || <Skeleton className="h-8 w-40 inline-block" />}! Your medical overview.</div>
         </div>
       </div>
       

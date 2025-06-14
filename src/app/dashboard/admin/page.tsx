@@ -135,7 +135,7 @@ export default function AdminDashboardPage() {
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-4">
-        <p className={`text-5xl font-bold ${colorClass}`}>{value}</p>
+        <div className={`text-5xl font-bold ${colorClass}`}>{value}</div>
         <CardDescription className="mt-1 text-muted-foreground">{description}</CardDescription>
       </CardContent>
     </Card>
@@ -150,7 +150,7 @@ export default function AdminDashboardPage() {
             <ShieldCheck className="w-10 h-10 text-primary"/>
             Admin Dashboard
           </h1>
-          <p className="text-lg text-muted-foreground font-body">Welcome, {adminName || <Skeleton className="h-8 w-40 inline-block" />}! System overview and management.</p>
+          <div className="text-lg text-muted-foreground font-body">Welcome, {adminName || <Skeleton className="h-8 w-40 inline-block" />}! System overview and management.</div>
         </div>
       </div>
       
