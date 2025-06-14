@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { getDashboardLink } from '@/lib/utils/getDashboardLink'; 
 import { Skeleton } from '@/components/ui/skeleton'; 
 import { HeartHandshake, Users, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Card, CardTitle, CardDescription } from '@/components/ui/card'; // Added import
 
 export default function HomePage() {
   const { currentUser, loading: authLoading } = useAuth();
@@ -113,3 +114,4 @@ const FeatureCard = ({ icon, title, description }: { icon: React.ReactNode, titl
     <CardDescription className="text-muted-foreground text-base leading-relaxed">{description}</CardDescription>
   </Card>
 );
+
