@@ -49,7 +49,7 @@ export default function HomePage() {
     <>
       <div className="relative min-h-[calc(80vh-4rem)] flex flex-col items-center justify-center p-6 text-center overflow-hidden bg-gradient-to-br from-primary/70 via-secondary/50 to-background">
         <Image
-          src="https://images.unsplash.com/photo-1516574187841-cb9cc2ca948b?q=80&w=1770&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+          src="https://getimg.ai/img/img-lzQGs9OLKyzHDEgPQkyho"
           alt="Pediatric care background with happy child and doctor"
           layout="fill"
           objectFit="cover"

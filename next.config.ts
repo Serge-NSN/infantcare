@@ -34,6 +34,12 @@ const nextConfig: NextConfig = {
         hostname: 'res.cloudinary.com', // Added Cloudinary domain
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'getimg.ai',
+        port: '',
+        pathname: '/**',
       }
     ],
   },
