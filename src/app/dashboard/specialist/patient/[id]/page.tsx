@@ -6,7 +6,7 @@ import * as React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowLeft, UserCircle, Stethoscope, FlaskConical, FileScan, Activity, MailIcon, Info, CalendarDays, FileText as FileIcon, MessageSquare, AlertTriangle, Fingerprint, Send, Microscope, Hospital, PlusCircle, Loader2, UserCheck, Download, MessageCircleQuestion, GraduationCap, HeartPulse, Palette, Eye, Wind, Weight, Thermometer, Gauge, FolderOpen, Wifi } from "lucide-react";
+import { ArrowLeft, UserCircle, Stethoscope, FlaskConical, FileScan, Activity, MailIcon, Info, CalendarDays, FileText as FileIcon, MessageSquare, AlertTriangle, Fingerprint, Send, Microscope, Hospital, PlusCircle, Loader2, UserCheck, Download, MessageCircleQuestion, GraduationCap, HeartPulse, Palette, Eye, Wind, Weight, Thermometer, Gauge, FolderOpen, Wifi, Video } from "lucide-react";
 import Image from "next/image";
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { FeedbackList, type FeedbackItem } from '@/components/dashboard/shared/FeedbackList'; // To show doctor's prior feedback
+import { EmailButton } from '@/components/shared/EmailButton';
 
 
 interface PatientData {
@@ -83,6 +84,7 @@ export default function SpecialistPatientFeedbackPage() {
   const [patient, setPatient] = useState<PatientData | null>(null);
   const [consultationRequest, setConsultationRequest] = useState<SpecialistConsultationRequest | null>(null);
   const [doctorFeedbacks, setDoctorFeedbacks] = useState<FeedbackItem[]>([]);
+  const [requestingDoctor, setRequestingDoctor] = useState<{ email?: string } | null>(null);
   
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -108,11 +110,21 @@ export default function SpecialistPatientFeedbackPage() {
         throw new Error("Patient not found.");
       }
 
-      // Fetch Consultation Request
+      // Fetch Consultation Request and then the requesting doctor's profile
       const requestDocRef = doc(db, "patients", patientDocId, "specialistConsultations", consultationRequestId);
       const requestDocSnap = await getDoc(requestDocRef);
       if (requestDocSnap.exists()) {
-        setConsultationRequest({ id: requestDocSnap.id, ...(requestDocSnap.data() as Omit<SpecialistConsultationRequest, 'id'>) });
+        const requestData = { id: requestDocSnap.id, ...(requestDocSnap.data() as Omit<SpecialistConsultationRequest, 'id'>) };
+        setConsultationRequest(requestData);
+
+        // Fetch requesting doctor's email for communication
+        if (requestData.requestingDoctorId) {
+          const doctorDocRef = doc(db, "users", requestData.requestingDoctorId);
+          const doctorDocSnap = await getDoc(doctorDocRef);
+          if (doctorDocSnap.exists()) {
+            setRequestingDoctor(doctorDocSnap.data() as { email?: string });
+          }
+        }
       } else {
         throw new Error("Consultation request not found.");
       }
@@ -388,6 +400,31 @@ export default function SpecialistPatientFeedbackPage() {
                     </CardContent>
                 </Card>
             )}
+
+             <Card className="shadow-xl">
+                <CardHeader>
+                    <CardTitle className="text-xl font-headline flex items-center gap-2"><Video className="w-5 h-5"/>Video Conference</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                     <Button asChild className="w-full">
+                        <a href="https://meet.google.com/new" target="_blank" rel="noopener noreferrer">
+                            <Video className="mr-2 h-4 w-4" /> Start Instant Meeting
+                        </a>
+                    </Button>
+                    <EmailButton
+                        receiverEmail={requestingDoctor?.email || ''}
+                        subject={`Conference for Patient: ${patient.patientName} (ID: ${patient.patientId})`}
+                        body={`Dear Dr. ${consultationRequest.requestingDoctorName},\n\nPlease join the video conference to discuss patient ${patient.patientName} (ID: ${patient.patientId}).\n\nPaste the meeting link here: [Your Google Meet Link]\n\nThank you,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
+                        buttonText="Email Conference Link to Doctor"
+                        icon={<MailIcon className="mr-2 h-4 w-4" />}
+                        className="w-full"
+                        variant="outline"
+                        disabled={!requestingDoctor?.email}
+                        title={!requestingDoctor?.email ? "Requesting doctor's email not available" : ""}
+                    />
+                </CardContent>
+            </Card>
+
              <Card className="shadow-md">
                 <CardHeader>
                     <CardTitle className="text-xl font-headline">Patient Summary</CardTitle>

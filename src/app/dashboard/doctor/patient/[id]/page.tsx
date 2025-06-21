@@ -6,7 +6,7 @@ import * as React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowLeft, UserCircle, Stethoscope, FlaskConical, FileScan, Activity, MailIcon, Info, CalendarDays, FileText as FileIcon, MessageSquare, AlertTriangle, Fingerprint, Send, Microscope, Hospital, PlusCircle, Loader2, UserCheck, Download, MessageCircleQuestion, GraduationCap, ListChecks, HeartPulse, Palette, Eye, Wind, Weight, Thermometer, Gauge, FolderOpen, Wifi } from "lucide-react";
+import { ArrowLeft, UserCircle, Stethoscope, FlaskConical, FileScan, Activity, MailIcon, Info, CalendarDays, FileText as FileIcon, MessageSquare, AlertTriangle, Fingerprint, Send, Microscope, Hospital, PlusCircle, Loader2, UserCheck, Download, MessageCircleQuestion, GraduationCap, ListChecks, HeartPulse, Palette, Eye, Wind, Weight, Thermometer, Gauge, FolderOpen, Wifi, Video } from "lucide-react";
 import Image from "next/image";
 import { EmailButton } from '@/components/shared/EmailButton';
 import { useParams, useRouter } from 'next/navigation';
@@ -661,7 +661,7 @@ export default function DoctorPatientDetailPage() {
                         disabled={isSubmittingFeedback || !newFeedbackText.trim()}
                         className="w-full bg-accent text-accent-foreground hover:bg-accent/80"
                     >
-                        {isSubmittingFeedback ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                        {isSubmittingFeedback ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
                         {isSubmittingFeedback ? 'Submitting...' : 'Add Feedback & Update Status'}
                     </Button>
                 </CardContent>
@@ -676,6 +676,28 @@ export default function DoctorPatientDetailPage() {
                         patientId={patient.id} 
                         patientName={patient.patientName}
                         onTestRequested={() => { fetchPatientData(); }}
+                    />
+                </CardContent>
+            </Card>
+
+            <Card className="shadow-xl">
+                <CardHeader>
+                    <CardTitle className="text-xl font-headline flex items-center gap-2"><Video className="w-5 h-5"/>Video Conference</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    <Button asChild className="w-full">
+                        <a href="https://meet.google.com/new" target="_blank" rel="noopener noreferrer">
+                            <Video className="mr-2 h-4 w-4" /> Start Instant Meeting
+                        </a>
+                    </Button>
+                    <EmailButton
+                        receiverEmail="specialist@example.com"
+                        subject={`Conference for Patient: ${patient.patientName} (ID: ${patient.patientId})`}
+                        body={`Dear Specialist,\n\nPlease join the video conference for patient ${patient.patientName} (ID: ${patient.patientId}).\n\nPaste the meeting link here: [Your Google Meet Link]\n\nThank you,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
+                        buttonText="Email Conference Link to Specialist"
+                        icon={<MailIcon className="mr-2 h-4 w-4" />}
+                        className="w-full"
+                        variant="outline"
                     />
                 </CardContent>
             </Card>
