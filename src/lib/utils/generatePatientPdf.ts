@@ -78,6 +78,7 @@ const FONT_SIZE_LARGE = 16;
 const FONT_SIZE_XLARGE = 20;
 
 async function fetchImageAsBase64(imageUrl: string): Promise<string | null> {
+  // Use a proxy if necessary to avoid CORS issues, for now direct fetch
   try {
     const response = await fetch(imageUrl);
     if (!response.ok) {

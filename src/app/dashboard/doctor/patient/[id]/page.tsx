@@ -6,7 +6,7 @@ import * as React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowLeft, UserCircle, Stethoscope, FlaskConical, FileScan, Activity, MailIcon, Info, CalendarDays, FileText as FileIcon, MessageSquare, AlertTriangle, Fingerprint, Send, Microscope, Hospital, PlusCircle, Loader2, UserCheck, Download, MessageCircleQuestion, GraduationCap, ListChecks, HeartPulse, Palette, Eye, Wind, Weight, Thermometer, Gauge } from "lucide-react";
+import { ArrowLeft, UserCircle, Stethoscope, FlaskConical, FileScan, Activity, MailIcon, Info, CalendarDays, FileText as FileIcon, MessageSquare, AlertTriangle, Fingerprint, Send, Microscope, Hospital, PlusCircle, Loader2, UserCheck, Download, MessageCircleQuestion, GraduationCap, ListChecks, HeartPulse, Palette, Eye, Wind, Weight, Thermometer, Gauge, FolderOpen, Wifi } from "lucide-react";
 import Image from "next/image";
 import { EmailButton } from '@/components/shared/EmailButton';
 import { useParams, useRouter } from 'next/navigation';
@@ -51,6 +51,9 @@ interface PatientData {
   colourOfEyes?: string;
 
   uploadedFileNames?: string[]; 
+  labResultUrls?: string[];
+  ecgResultUrls?: string[];
+  otherMedicalFileUrls?: string[];
   registrationDateTime: Timestamp;
   feedbackStatus: string; 
   caregiverUid: string;
@@ -354,6 +357,55 @@ export default function DoctorPatientDetailPage() {
       )}
     </div>
   );
+  
+  const FileDisplayCard = ({ title, files, icon: Icon }: { title: string; files?: string[]; icon: React.ElementType }) => {
+    if (!files || files.length === 0) {
+      return null; // Don't render the card if there are no files
+    }
+    return (
+      <Card className="p-4 bg-secondary/30">
+        <CardTitle className="text-xl font-headline mb-3 flex items-center">
+          <Icon className="mr-2 h-5 w-5 text-primary" /> {title}
+        </CardTitle>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          {files.map((fileSrc, index) => {
+            const fileNameFromUrl = (typeof fileSrc === 'string' && fileSrc.startsWith('http'))
+              ? fileSrc.substring(fileSrc.lastIndexOf('/') + 1).split('?')[0] || 'File'
+              : (typeof fileSrc === 'string' && fileSrc.startsWith('data:image'))
+              ? `Embedded Image ${index + 1}`
+              : `File ${index + 1}`;
+
+            let showActualImage = false;
+             if (typeof fileSrc === 'string' && fileSrc.trim() !== '') {
+                if (fileSrc.startsWith('data:image')) {
+                    showActualImage = true;
+                } else if (fileSrc.startsWith('http://') || fileSrc.startsWith('https://')) {
+                     if ((/\.(jpe?g|png|gif|webp)(\?|$)/i.test(fileSrc) || fileSrc.includes('cloudinary'))) {
+                        try { new URL(fileSrc); showActualImage = true; } catch (e) {}
+                    }
+                }
+            }
+            const isImage = showActualImage;
+            
+            return (
+              <a key={index} href={fileSrc} target="_blank" rel="noopener noreferrer" className="block group">
+                <div className="flex flex-col items-center text-center p-2 border rounded-md bg-background shadow-sm h-full group-hover:shadow-lg transition-shadow">
+                  {isImage && fileSrc ? ( 
+                    <Image src={fileSrc} alt={fileNameFromUrl || 'Uploaded image'} width={150} height={150} className="rounded-md object-cover mb-1" data-ai-hint="medical scan" onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/150x150.png?text=Error'; (e.target as HTMLImageElement).alt = 'Error loading image';}} />
+                  ) : (
+                    <div className="w-[150px] h-[150px] bg-muted rounded-md flex items-center justify-center mb-1 group-hover:bg-muted/80 transition-colors">
+                      <FileIcon className="h-16 w-16 text-muted-foreground" />
+                    </div>
+                  )}
+                  <TooltipProvider><Tooltip><TooltipTrigger asChild><p className="text-xs text-primary group-hover:underline truncate w-full max-w-[140px]">{fileNameFromUrl}</p></TooltipTrigger><TooltipContent><p>{fileNameFromUrl}</p></TooltipContent></Tooltip></TooltipProvider>
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      </Card>
+    );
+  };
 
   const handleDownloadReport = async () => {
     if (!patient || !currentUser) {
@@ -373,6 +425,13 @@ export default function DoctorPatientDetailPage() {
     } finally {
       setIsGeneratingPdf(false);
     }
+  };
+  
+  const handleTelemonitoringClick = () => {
+    toast({
+      title: "Feature Coming Soon",
+      description: "Telemonitoring integration will be available in a future update to fetch live patient data.",
+    });
   };
 
   const overallLoading = authLoading || loadingPatient;
@@ -463,16 +522,26 @@ export default function DoctorPatientDetailPage() {
                             </div>
                         </div>
                     </div>
-                    <Button 
-                        variant="default" 
-                        size="sm" 
-                        onClick={handleDownloadReport}
-                        disabled={isGeneratingPdf}
-                        className="bg-accent text-accent-foreground hover:bg-accent/90 mt-4 sm:mt-0 self-start sm:self-center"
-                    >
-                        {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                        {isGeneratingPdf ? 'Generating...' : 'Download Report'}
-                    </Button>
+                     <div className="flex flex-col sm:flex-row gap-2 mt-4 sm:mt-0 self-start sm:self-center">
+                        <Button 
+                            variant="default" 
+                            size="sm" 
+                            onClick={handleDownloadReport}
+                            disabled={isGeneratingPdf}
+                            className="bg-accent text-accent-foreground hover:bg-accent/90"
+                        >
+                            {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                            {isGeneratingPdf ? 'Generating...' : 'Download Report'}
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleTelemonitoringClick}
+                        >
+                            <Wifi className="mr-2 h-4 w-4" />
+                            Telemonitoring
+                        </Button>
+                    </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-6 pt-0">
@@ -516,44 +585,10 @@ export default function DoctorPatientDetailPage() {
                   </div>
                 </Card>
 
-                <Card className="p-4 bg-secondary/30">
-                  <CardTitle className="text-xl font-headline mb-3 flex items-center"><FileIcon className="mr-2 h-5 w-5 text-primary" />Uploaded Files by Caregiver</CardTitle>
-                  {patient.uploadedFileNames && patient.uploadedFileNames.length > 0 ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                      {patient.uploadedFileNames.map((fileSrc, index) => {
-                        const fileNameFromUrl = (typeof fileSrc === 'string' && fileSrc.startsWith('http'))
-                          ? fileSrc.substring(fileSrc.lastIndexOf('/') + 1).split('?')[0] || 'File'
-                          : (typeof fileSrc === 'string' && fileSrc.startsWith('data:image'))
-                          ? `Embedded Image ${index + 1}`
-                          : `File ${index + 1}`;
-
-                        let showActualImage = false;
-                        if (typeof fileSrc === 'string' && fileSrc.trim() !== '') {
-                          if (fileSrc.startsWith('data:image')) {
-                            showActualImage = true;
-                          } else if (fileSrc.startsWith('http://') || fileSrc.startsWith('https://')) {
-                             if ((/\.(jpe?g|png|gif|webp)(\?|$)/i.test(fileSrc) || fileSrc.includes('cloudinary'))) {
-                                try { new URL(fileSrc); showActualImage = true; } catch (e) {}
-                            }
-                          }
-                        }
-                        
-                        return (
-                          <div key={index} className="flex flex-col items-center text-center p-2 border rounded-md bg-background shadow-sm">
-                            {showActualImage && fileSrc ? ( 
-                              <Image src={fileSrc} alt={fileNameFromUrl || 'Uploaded image'} width={150} height={150} className="rounded-md object-cover mb-1" data-ai-hint="medical scan" onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/150x150.png?text=Error'; (e.target as HTMLImageElement).alt = 'Error loading image';}} />
-                            ) : (
-                              <div className="w-[150px] h-[150px] bg-muted rounded-md flex items-center justify-center mb-1"><FileIcon className="h-16 w-16 text-muted-foreground" /></div>
-                            )}
-                            <TooltipProvider><Tooltip><TooltipTrigger asChild><p className="text-xs text-foreground truncate w-full max-w-[140px]">{fileNameFromUrl}</p></TooltipTrigger><TooltipContent><p>{fileNameFromUrl}</p></TooltipContent></Tooltip></TooltipProvider>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-foreground">No files uploaded by caregiver.</p>
-                  )}
-                </Card>
+                <FileDisplayCard title="General Medical Images/Files" files={patient.uploadedFileNames} icon={FolderOpen} />
+                <FileDisplayCard title="Lab Results" files={patient.labResultUrls} icon={Microscope} />
+                <FileDisplayCard title="ECG Results" files={patient.ecgResultUrls} icon={Activity} />
+                <FileDisplayCard title="Other Uploaded Medical Files" files={patient.otherMedicalFileUrls} icon={FileIcon} />
 
                  <FeedbackList feedbacks={feedbacks} isLoading={loadingFeedbacks} title="Your Feedback History" />
                  <TestRequestList requests={testRequests} isLoading={loadingTestRequests} title="Test Request History" userRole="doctor" />

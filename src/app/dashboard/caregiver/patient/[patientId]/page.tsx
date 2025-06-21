@@ -300,39 +300,41 @@ export default function CaregiverPatientDetailPage() {
                 }
               }
             }
-            const isImage = showActualImage; // for clarity
+            const isImage = showActualImage;
 
             return (
-              <div key={index} className="flex flex-col items-center text-center p-2 border rounded-md bg-background shadow-sm">
-                {isImage && fileSrc ? (
-                  <Image
-                    src={fileSrc} 
-                    alt={fileNameFromUrl || 'Uploaded image'}
-                    width={150}
-                    height={150}
-                    className="rounded-md object-cover mb-1"
-                    data-ai-hint="medical scan" 
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://placehold.co/150x150.png?text=Error';
-                      (e.target as HTMLImageElement).alt = 'Error loading image';
-                    }}
-                  />
-                ) : (
-                  <a href={fileSrc} target="_blank" rel="noopener noreferrer" className="w-[150px] h-[150px] bg-muted rounded-md flex items-center justify-center mb-1 hover:bg-muted/80 transition-colors">
-                    <FileIcon className="h-16 w-16 text-muted-foreground" />
-                  </a>
-                )}
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                       <a href={fileSrc} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate w-full max-w-[140px]">{fileNameFromUrl}</a>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{fileNameFromUrl}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
+              <a key={index} href={fileSrc} target="_blank" rel="noopener noreferrer" className="block group">
+                <div className="flex flex-col items-center text-center p-2 border rounded-md bg-background shadow-sm h-full group-hover:shadow-lg transition-shadow">
+                  {isImage && fileSrc ? (
+                    <Image
+                      src={fileSrc} 
+                      alt={fileNameFromUrl || 'Uploaded image'}
+                      width={150}
+                      height={150}
+                      className="rounded-md object-cover mb-1"
+                      data-ai-hint="medical scan" 
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://placehold.co/150x150.png?text=Error';
+                        (e.target as HTMLImageElement).alt = 'Error loading image';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-[150px] h-[150px] bg-muted rounded-md flex items-center justify-center mb-1 group-hover:bg-muted/80 transition-colors">
+                      <FileIcon className="h-16 w-16 text-muted-foreground" />
+                    </div>
+                  )}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                         <p className="text-xs text-primary group-hover:underline truncate w-full max-w-[140px]">{fileNameFromUrl}</p>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{fileNameFromUrl}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </a>
             );
           })}
         </div>

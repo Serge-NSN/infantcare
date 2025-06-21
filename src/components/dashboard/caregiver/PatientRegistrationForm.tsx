@@ -38,7 +38,7 @@ const patientRegistrationSchema = z.object({
   patientName: z.string().min(2, "Patient name is required."),
   patientAge: z.string().min(1, "Patient age is required (e.g., 3 months, 1 year)."),
   patientGender: z.enum(["Male", "Female", "Other"], { required_error: "Gender is required." }),
-  patientAddress: z.string().min(5, "Address is required. e.g., Nlongkak Quarter, Yaounde"),
+  patientAddress: z.string().min(5, "Address is required. e.g., Mile 4 Nkwen, Bamenda"),
   patientPhoneNumber: z.string().min(9, "Valid phone number is required (e.g., 6XX XXX XXX)."),
   previousDiseases: z.string().optional().default(""),
   currentMedications: z.string().optional().default(""),
@@ -350,7 +350,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
               <FormItem>
                 <FormLabel>Hospital Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., Laquintinie Hospital Douala" {...field} />
+                  <Input placeholder="General Hospital" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -370,7 +370,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
               <FormItem>
                 <FormLabel>Patient's Full Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., Adama Bebe" {...field} />
+                  <Input placeholder="Suh Albert" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -418,7 +418,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
               <FormItem>
                 <FormLabel>Address</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., Nlongkak Quarter, Yaounde" {...field} />
+                  <Input placeholder="Mile 4 Nkwen, Bamenda" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
