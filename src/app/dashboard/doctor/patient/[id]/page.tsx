@@ -207,15 +207,7 @@ function EmailSpecialistDialog({ patientId, patientName }: { patientId: string; 
         ? `${window.location.origin}/dashboard/specialist/patient/${patientId}`
         : '';
 
-    const emailBody = `Dear Specialist,
-
-Please join the video conference for a deep discussion about patient ${patientName}.
-
-Meeting link: ${meetingLink || '[Paste Meeting Link Here]'}
-
-For patient details, please visit:
-${patientRecordUrl}
-`;
+    const emailBody = `Dear Specialist,\n\nPlease join the video conference for a deep discussion about patient ${patientName}.\n\nMeeting link: ${meetingLink || '[Paste Meeting Link Here]'}\n\nFor patient details, please visit:\n${patientRecordUrl}\n`;
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -224,7 +216,7 @@ ${patientRecordUrl}
                     <MailIcon className="mr-2 h-4 w-4" /> Email Conference Link to Specialist
                 </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="overflow-y-auto max-h-[90vh]">
                 <DialogHeader>
                     <DialogTitle>Email Conference Link</DialogTitle>
                     <DialogDescription>Select a specialist and enter the meeting link to send an invitation.</DialogDescription>
