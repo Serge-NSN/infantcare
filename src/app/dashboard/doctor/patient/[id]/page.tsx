@@ -251,7 +251,7 @@ function EmailSpecialistDialog({ patientId, patientName }: { patientId: string; 
                         subject={`Video Conference for Patient: ${patientName}`}
                         body={emailBody}
                         buttonText="Send Email"
-                        disabled={!selectedSpecialistEmail || !meetingLink.startsWith('http')}
+                        disabled={!selectedSpecialistEmail || meetingLink.trim().length < 8}
                     />
                 </DialogFooter>
             </DialogContent>
