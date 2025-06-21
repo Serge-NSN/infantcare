@@ -1,3 +1,4 @@
+
 // src/app/dashboard/specialist/patient/[id]/page.tsx
 "use client";
 
@@ -5,7 +6,7 @@ import * as React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowLeft, UserCircle, Stethoscope, FlaskConical, FileScan, Activity, MailIcon, Info, CalendarDays, FileText as FileIcon, MessageSquare, AlertTriangle, Fingerprint, Send, Microscope, Hospital, PlusCircle, Loader2, UserCheck, Download, MessageCircleQuestion, GraduationCap } from "lucide-react";
+import { ArrowLeft, UserCircle, Stethoscope, FlaskConical, FileScan, Activity, MailIcon, Info, CalendarDays, FileText as FileIcon, MessageSquare, AlertTriangle, Fingerprint, Send, Microscope, Hospital, PlusCircle, Loader2, UserCheck, Download, MessageCircleQuestion, GraduationCap, HeartPulse, Palette, Eye, Wind, Weight, Thermometer, Gauge } from "lucide-react";
 import Image from "next/image";
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -33,6 +34,17 @@ interface PatientData {
   hospitalName: string;
   previousDiseases?: string;
   currentMedications?: string;
+
+  // Vitals
+  bloodPressure?: string;
+  bodyTemperature?: string;
+  heartRate?: string;
+  oxygenSaturation?: string;
+  respiratoryRate?: string;
+  weight?: string;
+  skinTone?: string;
+  colourOfEyes?: string;
+
   uploadedFileNames?: string[]; 
   registrationDateTime: Timestamp;
   feedbackStatus: string; 
@@ -349,10 +361,16 @@ export default function SpecialistPatientFeedbackPage() {
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
                     <DetailItem label="Hospital Name" value={patient.hospitalName} icon={Hospital} />
-                    <DetailItem label="Address" value={patient.patientAddress} icon={Info} />
-                    <DetailItem label="Guardian Phone" value={patient.patientPhoneNumber} icon={MailIcon}/>
                     <DetailItem label="Previous Diseases" value={patient.previousDiseases} icon={Stethoscope}/>
                     <DetailItem label="Current Medications" value={patient.currentMedications} icon={FlaskConical}/>
+                    <DetailItem label="Blood Pressure" value={patient.bloodPressure} icon={Gauge} />
+                    <DetailItem label="Temperature" value={patient.bodyTemperature} icon={Thermometer} />
+                    <DetailItem label="Heart Rate" value={patient.heartRate} icon={HeartPulse} />
+                    <DetailItem label="SPO2" value={patient.oxygenSaturation} icon={Activity} />
+                    <DetailItem label="Respiratory Rate" value={patient.respiratoryRate} icon={Wind} />
+                    <DetailItem label="Weight" value={patient.weight} icon={Weight} />
+                    <DetailItem label="Skin Tone" value={patient.skinTone} icon={Palette} />
+                    <DetailItem label="Eye Colour" value={patient.colourOfEyes} icon={Eye} />
                 </CardContent>
              </Card>
         </div>

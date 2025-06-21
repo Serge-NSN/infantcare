@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, Timestamp, collection, query, orderBy, onSnapshot, Unsubscribe } from 'firebase/firestore';
-import { ArrowLeft, UserCircle, Hospital, CalendarDays, Stethoscope, Microscope, FileText as FileIcon, Edit, AlertTriangle, Info, Fingerprint, UserCheck, MessageSquareText, FileScan, Download, Loader2, Wifi, Activity, FolderOpen } from 'lucide-react';
+import { ArrowLeft, UserCircle, Hospital, CalendarDays, Stethoscope, Microscope, FileText as FileIcon, Edit, AlertTriangle, Info, Fingerprint, UserCheck, MessageSquareText, FileScan, Download, Loader2, Wifi, Activity, FolderOpen, HeartPulse, Thermometer, Wind, Weight, Eye, Palette, Gauge } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { FeedbackList, type FeedbackItem } from '@/components/dashboard/shared/FeedbackList';
@@ -32,7 +32,19 @@ interface PatientData {
   hospitalName: string;
   previousDiseases?: string;
   currentMedications?: string;
-  uploadedFileNames?: string[]; // General medical files
+
+  // Vitals
+  bloodPressure?: string;
+  bodyTemperature?: string;
+  heartRate?: string;
+  oxygenSaturation?: string;
+  respiratoryRate?: string;
+  weight?: string;
+  skinTone?: string;
+  colourOfEyes?: string;
+
+  // Files
+  uploadedFileNames?: string[]; 
   labResultUrls?: string[];
   ecgResultUrls?: string[];
   otherMedicalFileUrls?: string[];
@@ -406,6 +418,20 @@ export default function CaregiverPatientDetailPage() {
                     <DetailItem label="Current Medications" value={patient.currentMedications} />
                 </div>
             </Card>
+
+            <Card className="p-4 bg-secondary/30 md:col-span-2">
+              <CardTitle className="text-xl font-headline mb-3 flex items-center"><HeartPulse className="mr-2 h-5 w-5 text-primary" />Vitals</CardTitle>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-2">
+                <DetailItem label="Blood Pressure" value={patient.bloodPressure} icon={Gauge} />
+                <DetailItem label="Body Temperature" value={patient.bodyTemperature} icon={Thermometer} />
+                <DetailItem label="Heart Rate" value={patient.heartRate} icon={HeartPulse} />
+                <DetailItem label="SPO2" value={patient.oxygenSaturation} icon={Activity} />
+                <DetailItem label="Respiratory Rate" value={patient.respiratoryRate} icon={Wind} />
+                <DetailItem label="Weight" value={patient.weight} icon={Weight} />
+                <DetailItem label="Skin Tone" value={patient.skinTone} icon={Palette} />
+                <DetailItem label="Colour of Eyes" value={patient.colourOfEyes} icon={Eye} />
+              </div>
+            </Card>
           </div>
 
             <FileDisplayCard title="General Medical Images/Files" files={patient.uploadedFileNames} icon={FolderOpen} />
@@ -434,4 +460,3 @@ export default function CaregiverPatientDetailPage() {
     </div>
   );
 }
-

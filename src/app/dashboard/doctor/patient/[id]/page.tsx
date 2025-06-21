@@ -1,3 +1,4 @@
+
 // src/app/dashboard/doctor/patient/[id]/page.tsx
 "use client";
 
@@ -5,7 +6,7 @@ import * as React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowLeft, UserCircle, Stethoscope, FlaskConical, FileScan, Activity, MailIcon, Info, CalendarDays, FileText as FileIcon, MessageSquare, AlertTriangle, Fingerprint, Send, Microscope, Hospital, PlusCircle, Loader2, UserCheck, Download, MessageCircleQuestion, GraduationCap, ListChecks } from "lucide-react";
+import { ArrowLeft, UserCircle, Stethoscope, FlaskConical, FileScan, Activity, MailIcon, Info, CalendarDays, FileText as FileIcon, MessageSquare, AlertTriangle, Fingerprint, Send, Microscope, Hospital, PlusCircle, Loader2, UserCheck, Download, MessageCircleQuestion, GraduationCap, ListChecks, HeartPulse, Palette, Eye, Wind, Weight, Thermometer, Gauge } from "lucide-react";
 import Image from "next/image";
 import { EmailButton } from '@/components/shared/EmailButton';
 import { useParams, useRouter } from 'next/navigation';
@@ -38,6 +39,17 @@ interface PatientData {
   hospitalName: string;
   previousDiseases?: string;
   currentMedications?: string;
+  
+  // Vitals
+  bloodPressure?: string;
+  bodyTemperature?: string;
+  heartRate?: string;
+  oxygenSaturation?: string;
+  respiratoryRate?: string;
+  weight?: string;
+  skinTone?: string;
+  colourOfEyes?: string;
+
   uploadedFileNames?: string[]; 
   registrationDateTime: Timestamp;
   feedbackStatus: string; 
@@ -488,6 +500,20 @@ export default function DoctorPatientDetailPage() {
                         <DetailItem label="Previous Diseases" value={patient.previousDiseases} />
                         <DetailItem label="Current Medications" value={patient.currentMedications} />
                     </div>
+                </Card>
+
+                <Card className="p-4 bg-secondary/30">
+                  <CardTitle className="text-xl font-headline mb-3 flex items-center"><HeartPulse className="mr-2 h-5 w-5 text-primary" />Vitals</CardTitle>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-2">
+                    <DetailItem label="Blood Pressure" value={patient.bloodPressure} icon={Gauge} />
+                    <DetailItem label="Body Temperature" value={patient.bodyTemperature} icon={Thermometer} />
+                    <DetailItem label="Heart Rate" value={patient.heartRate} icon={HeartPulse} />
+                    <DetailItem label="SPO2" value={patient.oxygenSaturation} icon={Activity} />
+                    <DetailItem label="Respiratory Rate" value={patient.respiratoryRate} icon={Wind} />
+                    <DetailItem label="Weight" value={patient.weight} icon={Weight} />
+                    <DetailItem label="Skin Tone" value={patient.skinTone} icon={Palette} />
+                    <DetailItem label="Colour of Eyes" value={patient.colourOfEyes} icon={Eye} />
+                  </div>
                 </Card>
 
                 <Card className="p-4 bg-secondary/30">

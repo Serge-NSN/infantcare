@@ -27,6 +27,16 @@ interface PatientFirestoreData {
   hospitalName: string;
   previousDiseases?: string;
   currentMedications?: string;
+  
+  bloodPressure?: string;
+  bodyTemperature?: string;
+  heartRate?: string;
+  oxygenSaturation?: string;
+  respiratoryRate?: string;
+  weight?: string;
+  skinTone?: string;
+  colourOfEyes?: string;
+
   uploadedFileNames?: string[];
   labResultUrls?: string[];
   ecgResultUrls?: string[];
@@ -79,6 +89,16 @@ export default function EditPatientPage() {
               patientPhoneNumber: data.patientPhoneNumber,
               previousDiseases: data.previousDiseases || "",
               currentMedications: data.currentMedications || "",
+              
+              bloodPressure: data.bloodPressure || "",
+              bodyTemperature: data.bodyTemperature || "",
+              heartRate: data.heartRate || "",
+              oxygenSaturation: data.oxygenSaturation || "",
+              respiratoryRate: data.respiratoryRate || "",
+              weight: data.weight || "",
+              skinTone: data.skinTone || "",
+              colourOfEyes: data.colourOfEyes || "",
+
               uploadedFileNames: data.uploadedFileNames || [],
               labResultUrls: data.labResultUrls || [],
               ecgResultUrls: data.ecgResultUrls || [],
@@ -181,4 +201,3 @@ export default function EditPatientPage() {
     </div>
   );
 }
-

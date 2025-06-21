@@ -16,7 +16,23 @@ interface PatientData {
   hospitalName: string;
   previousDiseases?: string;
   currentMedications?: string;
+  
+  // Vitals
+  bloodPressure?: string;
+  bodyTemperature?: string;
+  heartRate?: string;
+  oxygenSaturation?: string;
+  respiratoryRate?: string;
+  weight?: string;
+  skinTone?: string;
+  colourOfEyes?: string;
+
+  // Files
   uploadedFileNames?: string[];
+  labResultUrls?: string[];
+  ecgResultUrls?: string[];
+  otherMedicalFileUrls?: string[];
+
   registrationDateTime: Timestamp;
   feedbackStatus: string;
   caregiverUid: string;
@@ -121,7 +137,7 @@ export async function generatePatientPdf(
     doc.text(`${label}:`, MARGIN, yPosition);
     doc.setFont('helvetica', 'normal');
     const textLines = doc.splitTextToSize(value, CONTENT_WIDTH - 30); 
-    doc.text(textLines, MARGIN + 35, yPosition); // Increased indent for value
+    doc.text(textLines, MARGIN + 45, yPosition); // Increased indent for value
     yPosition += textLines.length * (DEFAULT_LINE_HEIGHT * 0.7);
   };
   
@@ -174,48 +190,67 @@ export async function generatePatientPdf(
   addDetailItem('Current Medications', patient.currentMedications);
   yPosition += DEFAULT_LINE_HEIGHT * 0.5;
 
-  if (patient.uploadedFileNames && patient.uploadedFileNames.length > 0) {
-    addSectionTitle('Uploaded Medical Files/Images (Caregiver)');
-    for (const imageUrl of patient.uploadedFileNames) {
-      if (typeof imageUrl === 'string' && (imageUrl.startsWith('http') || imageUrl.startsWith('data:image'))) {
-        checkPageBreak(80); 
-        doc.setFontSize(FONT_SIZE_SMALL);
-        doc.setTextColor(150);
-        const fileName = imageUrl.startsWith('data:') ? 'Embedded Image' : imageUrl.substring(imageUrl.lastIndexOf('/') + 1).split('?')[0] || 'Image File';
-        doc.text(`File: ${fileName}`, MARGIN, yPosition);
-        yPosition += DEFAULT_LINE_HEIGHT * 0.6;
-        doc.setTextColor(0);
+  addSectionTitle('Vitals');
+  addDetailItem('Blood Pressure (BP)', patient.bloodPressure);
+  addDetailItem('Body Temperature (BT)', patient.bodyTemperature);
+  addDetailItem('Heart Rate (HR)', patient.heartRate);
+  addDetailItem('Oxygen Saturation (SPO2)', patient.oxygenSaturation);
+  addDetailItem('Respiratory Rate (RR)', patient.respiratoryRate);
+  addDetailItem('Weight (Wt)', patient.weight);
+  addDetailItem('Skin Tone', patient.skinTone);
+  addDetailItem('Colour of Eyes', patient.colourOfEyes);
+  yPosition += DEFAULT_LINE_HEIGHT * 0.5;
 
-        const base64Image = imageUrl.startsWith('data:image') ? imageUrl : await fetchImageAsBase64(imageUrl);
-        if (base64Image) {
-          try {
-            const imgProps = doc.getImageProperties(base64Image);
-            const imgWidth = CONTENT_WIDTH * 0.75; 
-            const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
-            
-            if (yPosition + imgHeight > PAGE_HEIGHT - MARGIN) {
-                doc.addPage();
-                yPosition = MARGIN;
-                doc.setFontSize(FONT_SIZE_SMALL);
-                doc.setTextColor(100);
-                doc.text(`Patient Report: ${patient.patientName} (ID: ${patient.patientId}) - Page ${doc.getNumberOfPages()}`, MARGIN, MARGIN / 2);
-                doc.line(MARGIN, MARGIN / 2 + 2, PAGE_WIDTH - MARGIN, MARGIN / 2 + 2);
-                yPosition = MARGIN + 5;
-                doc.setTextColor(0);
+  const displayFiles = async (title: string, fileUrls: string[] | undefined) => {
+    if (fileUrls && fileUrls.length > 0) {
+      addSectionTitle(title);
+      for (const imageUrl of fileUrls) {
+        if (typeof imageUrl === 'string' && (imageUrl.startsWith('http') || imageUrl.startsWith('data:image'))) {
+          checkPageBreak(80); 
+          doc.setFontSize(FONT_SIZE_SMALL);
+          doc.setTextColor(150);
+          const fileName = imageUrl.startsWith('data:') ? 'Embedded Image' : imageUrl.substring(imageUrl.lastIndexOf('/') + 1).split('?')[0] || 'Image File';
+          doc.text(`File: ${fileName}`, MARGIN, yPosition);
+          yPosition += DEFAULT_LINE_HEIGHT * 0.6;
+          doc.setTextColor(0);
+
+          const base64Image = imageUrl.startsWith('data:image') ? imageUrl : await fetchImageAsBase64(imageUrl);
+          if (base64Image) {
+            try {
+              const imgProps = doc.getImageProperties(base64Image);
+              const imgWidth = CONTENT_WIDTH * 0.75; 
+              const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+              
+              if (yPosition + imgHeight > PAGE_HEIGHT - MARGIN) {
+                  doc.addPage();
+                  yPosition = MARGIN;
+                  doc.setFontSize(FONT_SIZE_SMALL);
+                  doc.setTextColor(100);
+                  doc.text(`Patient Report: ${patient.patientName} (ID: ${patient.patientId}) - Page ${doc.getNumberOfPages()}`, MARGIN, MARGIN / 2);
+                  doc.line(MARGIN, MARGIN / 2 + 2, PAGE_WIDTH - MARGIN, MARGIN / 2 + 2);
+                  yPosition = MARGIN + 5;
+                  doc.setTextColor(0);
+              }
+              doc.addImage(base64Image, imgProps.fileType, MARGIN + (CONTENT_WIDTH * 0.125), yPosition, imgWidth, imgHeight);
+              yPosition += imgHeight + DEFAULT_LINE_HEIGHT * 0.5; 
+            } catch (e) {
+              console.error("Error adding image to PDF:", e);
+              addWrappedText(`Error displaying image: ${fileName}`, 5, { fontSize: FONT_SIZE_SMALL, fontStyle: 'italic' });
             }
-            doc.addImage(base64Image, imgProps.fileType, MARGIN + (CONTENT_WIDTH * 0.125), yPosition, imgWidth, imgHeight);
-            yPosition += imgHeight + DEFAULT_LINE_HEIGHT * 0.5; 
-          } catch (e) {
-            console.error("Error adding image to PDF:", e);
-            addWrappedText(`Error displaying image: ${fileName}`, 5, { fontSize: FONT_SIZE_SMALL, fontStyle: 'italic' });
+          } else {
+              addWrappedText(`Could not load image: ${fileName}`, 5, { fontSize: FONT_SIZE_SMALL, fontStyle: 'italic' });
           }
-        } else {
-            addWrappedText(`Could not load image: ${fileName}`, 5, { fontSize: FONT_SIZE_SMALL, fontStyle: 'italic' });
+           yPosition += DEFAULT_LINE_HEIGHT * 0.5;
         }
-         yPosition += DEFAULT_LINE_HEIGHT * 0.5;
       }
     }
-  }
+  };
+
+  await displayFiles('General Medical Files/Images', patient.uploadedFileNames);
+  await displayFiles('Lab Results', patient.labResultUrls);
+  await displayFiles('ECG Results', patient.ecgResultUrls);
+  await displayFiles('Other Medical Files', patient.otherMedicalFileUrls);
+
   yPosition += DEFAULT_LINE_HEIGHT * 0.5;
 
   if (feedbacks.length > 0) {

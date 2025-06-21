@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { MedicalTermInput } from "@/components/shared/MedicalTermInput";
 import { useToast } from "@/hooks/use-toast";
-import { Save, FileText, Loader2, Wifi, Microscope, Activity, FolderOpen } from "lucide-react";
+import { Save, FileText, Loader2, Wifi, Microscope, Activity, FolderOpen, HeartPulse } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, updateDoc, doc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
@@ -42,7 +42,19 @@ const patientRegistrationSchema = z.object({
   patientPhoneNumber: z.string().min(9, "Valid phone number is required (e.g., 6XX XXX XXX)."),
   previousDiseases: z.string().optional().default(""),
   currentMedications: z.string().optional().default(""),
-  generalMedicalFiles: z.custom<FileList>().optional(), // Existing files, renamed for clarity
+  
+  // Vitals
+  bloodPressure: z.string().optional(),
+  bodyTemperature: z.string().optional(),
+  heartRate: z.string().optional(),
+  oxygenSaturation: z.string().optional(),
+  respiratoryRate: z.string().optional(),
+  weight: z.string().optional(),
+  skinTone: z.string().optional(),
+  colourOfEyes: z.string().optional(),
+
+  // Files
+  generalMedicalFiles: z.custom<FileList>().optional(),
   labResultFiles: z.custom<FileList>().optional(),
   ecgResultFiles: z.custom<FileList>().optional(),
   otherMedicalFiles: z.custom<FileList>().optional(),
@@ -61,7 +73,19 @@ export interface PatientDataForForm {
   patientPhoneNumber: string;
   previousDiseases?: string;
   currentMedications?: string;
-  uploadedFileNames?: string[]; // For generalMedicalFiles
+  
+  // Vitals
+  bloodPressure?: string;
+  bodyTemperature?: string;
+  heartRate?: string;
+  oxygenSaturation?: string;
+  respiratoryRate?: string;
+  weight?: string;
+  skinTone?: string;
+  colourOfEyes?: string;
+
+  // Files
+  uploadedFileNames?: string[]; 
   labResultUrls?: string[];
   ecgResultUrls?: string[];
   otherMedicalFileUrls?: string[];
@@ -80,6 +104,14 @@ const defaultValues: Partial<PatientRegistrationFormValues> = {
   patientPhoneNumber: "",
   previousDiseases: "",
   currentMedications: "",
+  bloodPressure: "",
+  bodyTemperature: "",
+  heartRate: "",
+  oxygenSaturation: "",
+  respiratoryRate: "",
+  weight: "",
+  skinTone: "",
+  colourOfEyes: "",
 };
 
 export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFormProps) {
@@ -105,7 +137,14 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
         patientPhoneNumber: patientToEdit.patientPhoneNumber,
         previousDiseases: patientToEdit.previousDiseases || "",
         currentMedications: patientToEdit.currentMedications || "",
-        // File fields are not pre-filled directly, existing files are shown separately
+        bloodPressure: patientToEdit.bloodPressure || "",
+        bodyTemperature: patientToEdit.bodyTemperature || "",
+        heartRate: patientToEdit.heartRate || "",
+        oxygenSaturation: patientToEdit.oxygenSaturation || "",
+        respiratoryRate: patientToEdit.respiratoryRate || "",
+        weight: patientToEdit.weight || "",
+        skinTone: patientToEdit.skinTone || "",
+        colourOfEyes: patientToEdit.colourOfEyes || "",
       };
       form.reset(formData);
     }
@@ -170,7 +209,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
 
     try {
       if (isEditMode && patientToEdit) {
-        const updatedPatientData: Omit<Partial<PatientDataForForm>, 'id' | 'hospitalId' | 'caregiverName'> & { updatedAt: Timestamp } = {
+        const updatedPatientData = {
           hospitalName: data.hospitalName,
           patientName: data.patientName,
           patientAge: data.patientAge,
@@ -179,6 +218,14 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
           patientPhoneNumber: data.patientPhoneNumber,
           previousDiseases: data.previousDiseases,
           currentMedications: data.currentMedications,
+          bloodPressure: data.bloodPressure,
+          bodyTemperature: data.bodyTemperature,
+          heartRate: data.heartRate,
+          oxygenSaturation: data.oxygenSaturation,
+          respiratoryRate: data.respiratoryRate,
+          weight: data.weight,
+          skinTone: data.skinTone,
+          colourOfEyes: data.colourOfEyes,
           uploadedFileNames: [...new Set([...(patientToEdit.uploadedFileNames || []), ...generalMedicalUrls])],
           labResultUrls: [...new Set([...(patientToEdit.labResultUrls || []), ...labResultUrls])],
           ecgResultUrls: [...new Set([...(patientToEdit.ecgResultUrls || []), ...ecgResultUrls])],
@@ -209,6 +256,14 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
           patientPhoneNumber: data.patientPhoneNumber,
           previousDiseases: data.previousDiseases,
           currentMedications: data.currentMedications,
+          bloodPressure: data.bloodPressure,
+          bodyTemperature: data.bodyTemperature,
+          heartRate: data.heartRate,
+          oxygenSaturation: data.oxygenSaturation,
+          respiratoryRate: data.respiratoryRate,
+          weight: data.weight,
+          skinTone: data.skinTone,
+          colourOfEyes: data.colourOfEyes,
           patientId: generatedPatientId,
           hospitalId: generatedHospitalId,
           caregiverUid: currentUser.uid,
@@ -227,8 +282,7 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
           title: "Patient Registration Successful",
           description: `${data.patientName} (ID: ${generatedPatientId}) has been registered. Hospital ID: ${generatedHospitalId}`,
         });
-        form.reset(defaultValues); // Reset form fields
-        // Also explicitly reset file input fields if react-hook-form doesn't clear them by default
+        form.reset(defaultValues); 
         form.setValue('generalMedicalFiles', undefined);
         form.setValue('labResultFiles', undefined);
         form.setValue('ecgResultFiles', undefined);
@@ -418,6 +472,100 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
         </div>
 
         <div className="space-y-6 pt-4 border-t">
+          <h3 className="text-lg font-medium text-primary flex items-center"><HeartPulse className="mr-2 h-5 w-5"/> Record Vitals</h3>
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <FormField
+                control={form.control}
+                name="bloodPressure"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Blood Pressure (BP)</FormLabel>
+                    <FormControl><Input placeholder="e.g., 80/45 mmHg" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="bodyTemperature"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Body Temperature (BT)</FormLabel>
+                    <FormControl><Input placeholder="e.g., 37.5 °C" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="heartRate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Heart Rate (HR)</FormLabel>
+                    <FormControl><Input placeholder="e.g., 140 bpm" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="oxygenSaturation"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Oxygen Saturation (SPO2)</FormLabel>
+                    <FormControl><Input placeholder="e.g., 98%" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="respiratoryRate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Respiratory Rate (RR)</FormLabel>
+                    <FormControl><Input placeholder="e.g., 45 breaths/min" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="weight"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Weight (Wt)</FormLabel>
+                    <FormControl><Input placeholder="e.g., 7.5 kg" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="skinTone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Skin Tone</FormLabel>
+                    <FormControl><Input placeholder="e.g., Normal, Pale, Jaundiced" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="colourOfEyes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Colour of Eyes</FormLabel>
+                    <FormControl><Input placeholder="e.g., White, Yellowish" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+           </div>
+        </div>
+
+        <div className="space-y-6 pt-4 border-t">
             <h3 className="text-lg font-medium text-primary flex items-center"><FolderOpen className="mr-2 h-5 w-5"/> Upload Medical Files (Optional)</h3>
             
             <FormField
@@ -533,4 +681,3 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
     </Form>
   );
 }
-
