@@ -127,7 +127,7 @@ export default function AdminDashboardPage() {
   }
 
   const StatCard = ({ title, value, icon: Icon, description, colorClass = "text-primary", bgColorClass = "bg-primary/10" }: { title: string, value: number | string, icon: React.ElementType, description: string, colorClass?: string, bgColorClass?: string }) => (
-    <Card className="shadow-xl hover:shadow-2xl transition-shadow duration-300 rounded-xl overflow-hidden">
+    <Card className="shadow-xl hover:shadow-2xl transition-shadow duration-300 rounded-xl overflow-hidden h-full">
       <CardHeader className={`pb-2 ${bgColorClass}`}>
         <CardTitle className={`text-xl font-headline flex items-center justify-between ${colorClass}`}>
           {title}
@@ -168,11 +168,21 @@ export default function AdminDashboardPage() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6 mb-10">
-        <StatCard title="Total Patients" value={stats?.totalPatients ?? 0} icon={Users} description="All registered patients." colorClass="text-blue-600" bgColorClass="bg-blue-600/10" />
-        <StatCard title="Pending Cases" value={stats?.pendingCasesCount ?? 0} icon={Activity} description="Awaiting doctor/specialist action." colorClass="text-orange-600" bgColorClass="bg-orange-600/10" />
-        <StatCard title="Caregivers" value={stats?.totalCaregivers ?? 0} icon={UserPlus} description="Registered caregivers." colorClass="text-green-600" bgColorClass="bg-green-600/10"/>
-        <StatCard title="Doctors" value={stats?.totalDoctors ?? 0} icon={BriefcaseMedical} description="Registered medical doctors." colorClass="text-purple-600" bgColorClass="bg-purple-600/10" />
-        <StatCard title="Specialists" value={stats?.totalSpecialists ?? 0} icon={Users2} description="Registered specialists." colorClass="text-teal-600" bgColorClass="bg-teal-600/10" />
+        <Link href="/dashboard/admin/view-all-patients" className="block">
+            <StatCard title="Total Patients" value={stats?.totalPatients ?? 0} icon={Users} description="All registered patients." colorClass="text-blue-600" bgColorClass="bg-blue-600/10" />
+        </Link>
+        <Link href="/dashboard/admin/view-pending-cases" className="block">
+            <StatCard title="Pending Cases" value={stats?.pendingCasesCount ?? 0} icon={Activity} description="Awaiting doctor/specialist action." colorClass="text-orange-600" bgColorClass="bg-orange-600/10" />
+        </Link>
+        <Link href="/dashboard/admin/view-users-by-role?role=Caregiver" className="block">
+            <StatCard title="Caregivers" value={stats?.totalCaregivers ?? 0} icon={UserPlus} description="Registered caregivers." colorClass="text-green-600" bgColorClass="bg-green-600/10"/>
+        </Link>
+        <Link href="/dashboard/admin/view-users-by-role?role=Medical+Doctor" className="block">
+            <StatCard title="Doctors" value={stats?.totalDoctors ?? 0} icon={BriefcaseMedical} description="Registered medical doctors." colorClass="text-purple-600" bgColorClass="bg-purple-600/10" />
+        </Link>
+        <Link href="/dashboard/admin/view-users-by-role?role=Specialist" className="block">
+            <StatCard title="Specialists" value={stats?.totalSpecialists ?? 0} icon={Users2} description="Registered specialists." colorClass="text-teal-600" bgColorClass="bg-teal-600/10" />
+        </Link>
       </div>
 
       <Card className="shadow-xl rounded-xl">
