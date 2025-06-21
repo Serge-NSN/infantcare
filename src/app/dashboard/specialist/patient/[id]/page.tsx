@@ -1,4 +1,3 @@
-
 // src/app/dashboard/specialist/patient/[id]/page.tsx
 "use client";
 
@@ -93,8 +92,8 @@ export default function SpecialistPatientFeedbackPage() {
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
   const fetchData = useCallback(async () => {
-    if (!currentUser || !patientDocId || !consultationRequestId) {
-      setError("Authentication error or missing patient/request ID.");
+    if (!currentUser || !patientDocId) {
+      setError("Authentication error or missing patient ID.");
       setLoadingData(false);
       return;
     }
@@ -110,23 +109,25 @@ export default function SpecialistPatientFeedbackPage() {
         throw new Error("Patient not found.");
       }
 
-      // Fetch Consultation Request and then the requesting doctor's profile
-      const requestDocRef = doc(db, "patients", patientDocId, "specialistConsultations", consultationRequestId);
-      const requestDocSnap = await getDoc(requestDocRef);
-      if (requestDocSnap.exists()) {
-        const requestData = { id: requestDocSnap.id, ...(requestDocSnap.data() as Omit<SpecialistConsultationRequest, 'id'>) };
-        setConsultationRequest(requestData);
+      // Fetch Consultation Request if ID is present
+      if (consultationRequestId) {
+        const requestDocRef = doc(db, "patients", patientDocId, "specialistConsultations", consultationRequestId);
+        const requestDocSnap = await getDoc(requestDocRef);
+        if (requestDocSnap.exists()) {
+          const requestData = { id: requestDocSnap.id, ...(requestDocSnap.data() as Omit<SpecialistConsultationRequest, 'id'>) };
+          setConsultationRequest(requestData);
 
-        // Fetch requesting doctor's email for communication
-        if (requestData.requestingDoctorId) {
-          const doctorDocRef = doc(db, "users", requestData.requestingDoctorId);
-          const doctorDocSnap = await getDoc(doctorDocRef);
-          if (doctorDocSnap.exists()) {
-            setRequestingDoctor(doctorDocSnap.data() as { email?: string });
+          // Fetch requesting doctor's email for communication
+          if (requestData.requestingDoctorId) {
+            const doctorDocRef = doc(db, "users", requestData.requestingDoctorId);
+            const doctorDocSnap = await getDoc(doctorDocRef);
+            if (doctorDocSnap.exists()) {
+              setRequestingDoctor(doctorDocSnap.data() as { email?: string });
+            }
           }
+        } else {
+          console.warn("Consultation request not found, but continuing to show patient data.");
         }
-      } else {
-        throw new Error("Consultation request not found.");
       }
 
       // Fetch Doctor's existing feedback for context
@@ -150,7 +151,7 @@ export default function SpecialistPatientFeedbackPage() {
 
   const handleFeedbackSubmit = async () => {
     if (!patient || !consultationRequest || !currentUser || !newSpecialistFeedback.trim()) {
-      toast({ title: "Error", description: "Feedback cannot be empty.", variant: "destructive" });
+      toast({ title: "Error", description: "Feedback cannot be empty or request is missing.", variant: "destructive" });
       return;
     }
     setIsSubmittingFeedback(true);
@@ -300,17 +301,16 @@ export default function SpecialistPatientFeedbackPage() {
     );
   }
 
-  if (!patient || !consultationRequest) {
+  if (!patient) {
     return (
       <div className="container mx-auto py-8 px-4 text-center">
-        <p>Patient or consultation request data could not be loaded.</p>
+        <p>Patient data could not be loaded.</p>
         <Button asChild className="mt-4">
           <Link href="/dashboard/specialist"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Specialist Dashboard</Link>
         </Button>
       </div>
     );
   }
-  const badgeProps = getSpecialistConsultationStatusBadgeProps(consultationRequest.status);
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -332,25 +332,29 @@ export default function SpecialistPatientFeedbackPage() {
                             <CardDescription className="font-body">
                             Patient ID: {patient.patientId} &bull; Age: {patient.patientAge} &bull; Gender: {patient.patientGender}
                             </CardDescription>
-                            <Badge variant={badgeProps.variant} className={`mt-2 ${badgeProps.className}`}>
-                                {consultationRequest.status}
-                            </Badge>
+                            {consultationRequest && (
+                                <Badge variant={getSpecialistConsultationStatusBadgeProps(consultationRequest.status).variant} className={`mt-2 ${getSpecialistConsultationStatusBadgeProps(consultationRequest.status).className}`}>
+                                    {consultationRequest.status}
+                                </Badge>
+                            )}
                         </div>
                     </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-6 pt-0">
-                <Card className="p-4 bg-secondary/30">
-                    <CardTitle className="text-xl font-headline mb-3 flex items-center"><MessageCircleQuestion className="mr-2 h-5 w-5 text-blue-600 dark:text-blue-400" />Doctor's Consultation Request</CardTitle>
-                    <DetailItem label="Requesting Doctor" value={`Dr. ${consultationRequest.requestingDoctorName}`} icon={UserCheck}/>
-                    <DetailItem label="Requested On" value={consultationRequest.requestedAt?.toDate ? new Date(consultationRequest.requestedAt.toDate()).toLocaleString('en-US') : 'N/A'} icon={CalendarDays}/>
-                    <div className="mt-2">
-                        <p className="text-sm font-semibold text-muted-foreground">Request Details:</p>
-                        <p className="text-sm text-foreground whitespace-pre-wrap p-2 border rounded-md bg-background">{consultationRequest.requestDetails}</p>
-                    </div>
-                </Card>
+                {consultationRequest && (
+                  <Card className="p-4 bg-secondary/30">
+                      <CardTitle className="text-xl font-headline mb-3 flex items-center"><MessageCircleQuestion className="mr-2 h-5 w-5 text-blue-600 dark:text-blue-400" />Doctor's Consultation Request</CardTitle>
+                      <DetailItem label="Requesting Doctor" value={`Dr. ${consultationRequest.requestingDoctorName}`} icon={UserCheck}/>
+                      <DetailItem label="Requested On" value={consultationRequest.requestedAt?.toDate ? new Date(consultationRequest.requestedAt.toDate()).toLocaleString('en-US') : 'N/A'} icon={CalendarDays}/>
+                      <div className="mt-2">
+                          <p className="text-sm font-semibold text-muted-foreground">Request Details:</p>
+                          <p className="text-sm text-foreground whitespace-pre-wrap p-2 border rounded-md bg-background">{consultationRequest.requestDetails}</p>
+                      </div>
+                  </Card>
+                )}
 
-                {consultationRequest.status === 'Feedback Provided by Specialist' && consultationRequest.specialistFeedback && (
+                {consultationRequest?.status === 'Feedback Provided by Specialist' && consultationRequest.specialistFeedback && (
                      <Card className="p-4 bg-green-500/10 border-green-500/30">
                         <CardTitle className="text-xl font-headline mb-3 flex items-center"><GraduationCap className="mr-2 h-5 w-5 text-green-600 dark:text-green-400" />Your Submitted Feedback</CardTitle>
                         <DetailItem label="Feedback By" value={`Dr. ${consultationRequest.specialistName || 'N/A'}`} icon={UserCheck}/>
@@ -374,7 +378,7 @@ export default function SpecialistPatientFeedbackPage() {
         </div>
 
         <div className="lg:col-span-1 space-y-6">
-            {consultationRequest.status === 'Pending Specialist Review' && (
+            {consultationRequest?.status === 'Pending Specialist Review' && (
                 <Card className="shadow-xl">
                     <CardHeader>
                         <CardTitle className="text-xl font-headline flex items-center gap-2"><GraduationCap className="w-5 h-5 text-accent"/>Provide Your Specialist Feedback</CardTitle>
@@ -414,12 +418,12 @@ export default function SpecialistPatientFeedbackPage() {
                     <EmailButton
                         receiverEmail={requestingDoctor?.email || ''}
                         subject={`Conference for Patient: ${patient.patientName} (ID: ${patient.patientId})`}
-                        body={`Dear Dr. ${consultationRequest.requestingDoctorName},\n\nPlease join the video conference to discuss patient ${patient.patientName} (ID: ${patient.patientId}).\n\nPaste the meeting link here: [Your Google Meet Link]\n\nThank you,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
+                        body={`Dear Dr. ${consultationRequest?.requestingDoctorName},\n\nPlease join the video conference to discuss patient ${patient.patientName} (ID: ${patient.patientId}).\n\nPaste the meeting link here: [Your Google Meet Link]\n\nThank you,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
                         buttonText="Email Conference Link to Doctor"
                         icon={<MailIcon className="mr-2 h-4 w-4" />}
                         className="w-full"
                         variant="outline"
-                        disabled={!requestingDoctor?.email}
+                        disabled={!requestingDoctor?.email || !consultationRequest}
                         title={!requestingDoctor?.email ? "Requesting doctor's email not available" : ""}
                     />
                 </CardContent>

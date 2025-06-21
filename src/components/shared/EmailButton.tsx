@@ -1,4 +1,4 @@
-
+// src/components/shared/EmailButton.tsx
 "use client";
 
 import * as React from 'react'; // Added React import
@@ -35,7 +35,8 @@ export function EmailButton({
     // Not all clients support 'from' or 'cc' reliably via mailto
     // if (senderEmail) params.append('from', senderEmail); 
 
-    const queryString = params.toString();
+    // Encode spaces as %20 instead of + for better compatibility/appearance in some clients
+    const queryString = params.toString().replace(/\+/g, '%20');
     if (queryString) {
       mailtoLink += `?${queryString}`;
     }

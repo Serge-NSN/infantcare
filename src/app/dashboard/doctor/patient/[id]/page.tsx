@@ -1,4 +1,3 @@
-
 // src/app/dashboard/doctor/patient/[id]/page.tsx
 "use client";
 
@@ -12,7 +11,7 @@ import { EmailButton } from '@/components/shared/EmailButton';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, updateDoc, Timestamp, serverTimestamp, collection, addDoc, query, orderBy, onSnapshot, Unsubscribe, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, Timestamp, serverTimestamp, collection, addDoc, query, orderBy, onSnapshot, Unsubscribe, writeBatch, where, getDocs } from 'firebase/firestore';
 import { useEffect, useState, useCallback } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
@@ -25,6 +24,8 @@ import { TestRequestList, type TestRequestItem } from '@/components/dashboard/sh
 import { generatePatientPdf } from '@/lib/utils/generatePatientPdf';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 
 
 interface PatientData {
@@ -78,6 +79,12 @@ export interface SpecialistConsultationRequest {
     specialistName?: string;
     specialistFeedback?: string;
     feedbackProvidedAt?: Timestamp;
+}
+
+interface SpecialistUser {
+    uid: string;
+    fullName: string;
+    email: string;
 }
 
 interface RequestConsultationDialogProps {
@@ -168,6 +175,97 @@ function RequestConsultationDialog({ patientId, patientName, onConsultationReque
   );
 }
 
+function EmailSpecialistDialog({ patientId, patientName }: { patientId: string; patientName: string }) {
+    const [open, setOpen] = useState(false);
+    const [specialists, setSpecialists] = useState<SpecialistUser[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [selectedSpecialistEmail, setSelectedSpecialistEmail] = useState('');
+    const [meetingLink, setMeetingLink] = useState('');
+    const { toast } = useToast();
+
+    useEffect(() => {
+        if (open) {
+            const fetchSpecialists = async () => {
+                setIsLoading(true);
+                try {
+                    const q = query(collection(db, 'users'), where('role', '==', 'Specialist'));
+                    const querySnapshot = await getDocs(q);
+                    const fetchedSpecialists = querySnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as SpecialistUser));
+                    setSpecialists(fetchedSpecialists);
+                } catch (error) {
+                    console.error("Error fetching specialists:", error);
+                    toast({ title: "Error", description: "Could not fetch specialist list.", variant: "destructive" });
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            fetchSpecialists();
+        }
+    }, [open, toast]);
+
+    const patientRecordUrl = typeof window !== 'undefined' 
+        ? `${window.location.origin}/dashboard/specialist/patient/${patientId}`
+        : '';
+
+    const emailBody = `Dear Specialist,
+
+Please join the video conference for a deep discussion about patient ${patientName}.
+
+Meeting link: ${meetingLink || '[Paste Meeting Link Here]'}
+
+For patient details, please visit:
+${patientRecordUrl}
+`;
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline" className="w-full">
+                    <MailIcon className="mr-2 h-4 w-4" /> Email Conference Link to Specialist
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Email Conference Link</DialogTitle>
+                    <DialogDescription>Select a specialist and enter the meeting link to send an invitation.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div>
+                        <Label htmlFor="specialist-select">Select Specialist</Label>
+                        <Select onValueChange={setSelectedSpecialistEmail} value={selectedSpecialistEmail}>
+                            <SelectTrigger id="specialist-select">
+                                <SelectValue placeholder={isLoading ? "Loading specialists..." : "Select a specialist"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {specialists.map(s => (
+                                    <SelectItem key={s.uid} value={s.email}>{s.fullName} ({s.email})</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <Label htmlFor="meeting-link">Meeting Link</Label>
+                        <Input 
+                            id="meeting-link" 
+                            placeholder="https://meet.google.com/xyz-abcd-efg" 
+                            value={meetingLink}
+                            onChange={(e) => setMeetingLink(e.target.value)}
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <EmailButton 
+                        receiverEmail={selectedSpecialistEmail}
+                        subject={`Video Conference for Patient: ${patientName}`}
+                        body={emailBody}
+                        buttonText="Send Email"
+                        disabled={!selectedSpecialistEmail || !meetingLink.startsWith('http')}
+                    />
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 export default function DoctorPatientDetailPage() {
   const params = useParams();
@@ -690,15 +788,7 @@ export default function DoctorPatientDetailPage() {
                             <Video className="mr-2 h-4 w-4" /> Start Instant Meeting
                         </a>
                     </Button>
-                    <EmailButton
-                        receiverEmail="specialist@example.com"
-                        subject={`Conference for Patient: ${patient.patientName} (ID: ${patient.patientId})`}
-                        body={`Dear Specialist,\n\nPlease join the video conference for patient ${patient.patientName} (ID: ${patient.patientId}).\n\nPaste the meeting link here: [Your Google Meet Link]\n\nThank you,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
-                        buttonText="Email Conference Link to Specialist"
-                        icon={<MailIcon className="mr-2 h-4 w-4" />}
-                        className="w-full"
-                        variant="outline"
-                    />
+                    <EmailSpecialistDialog patientId={patient.id} patientName={patient.patientName} />
                 </CardContent>
             </Card>
             
