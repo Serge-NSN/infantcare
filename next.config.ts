@@ -40,6 +40,12 @@ const nextConfig: NextConfig = {
         hostname: 'getimg.ai',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.unicef.org',
+        port: '',
+        pathname: '/**',
       }
     ],
   },

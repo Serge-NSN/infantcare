@@ -49,7 +49,7 @@ export default function HomePage() {
     <>
       <div className="relative min-h-[calc(80vh-4rem)] flex flex-col items-center justify-center p-6 text-center overflow-hidden bg-gradient-to-br from-primary/70 via-secondary/50 to-background">
         <Image
-          src="https://getimg.ai/img/img-lzQGs9OLKyzHDEgPQkyho"
+          src="https://www.unicef.org/wca/sites/unicef.org.wca/files/styles/press_release_feature/public/UN0188884.jpg.webp?itok=fe-ym6rP"
           alt="Pediatric care background with happy child and doctor"
           layout="fill"
           objectFit="cover"
