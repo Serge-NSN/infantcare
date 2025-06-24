@@ -1,3 +1,4 @@
+
 // src/app/profile/page.tsx
 "use client";
 
@@ -27,6 +28,7 @@ const profileSchema = z.object({
   email: z.string().email("Invalid email address."),
   career: z.string().min(2, "Career must be at least 2 characters."),
   address: z.string().min(5, "Address must be at least 5 characters."),
+  phoneNumber: z.string().min(9, "Valid phone number is required.").optional(),
   hospital: z.string().min(2, "Hospital name must be at least 2 characters."),
   currentPassword: z.string().optional(), // For email change re-authentication
   role: z.string().optional(),
@@ -49,6 +51,7 @@ export default function ProfilePage() {
       email: '',
       career: '',
       address: '',
+      phoneNumber: '',
       hospital: '',
       currentPassword: '',
       role: '',
@@ -77,6 +80,7 @@ export default function ProfilePage() {
               email: currentUser.email || '', // Firebase Auth email is source of truth initially
               career: dbData.career || '',
               address: dbData.address || '',
+              phoneNumber: dbData.phoneNumber || '',
               hospital: dbData.hospital || '',
               currentPassword: '',
               role: dbData.role || '',
@@ -117,6 +121,7 @@ export default function ProfilePage() {
         fullName: data.fullName,
         career: data.career,
         address: data.address,
+        phoneNumber: data.phoneNumber,
         hospital: data.hospital,
         // email is updated in Auth, Firestore email field should reflect Auth email
       });
@@ -270,6 +275,17 @@ export default function ProfilePage() {
                   <Label htmlFor="address">Address</Label>
                   <Input id="address" {...field} />
                   {errors.address && <FormMessage>{errors.address.message}</FormMessage>}
+                </FormItem>
+              )}
+            />
+            <Controller
+              name="phoneNumber"
+              control={control}
+              render={({ field }) => (
+                <FormItem>
+                  <Label htmlFor="phoneNumber">Phone Number</Label>
+                  <Input id="phoneNumber" type="tel" {...field} />
+                  {errors.phoneNumber && <FormMessage>{errors.phoneNumber.message}</FormMessage>}
                 </FormItem>
               )}
             />

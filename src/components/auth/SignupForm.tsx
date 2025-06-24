@@ -36,6 +36,7 @@ const signupFormSchema = z.object({
   career: z.string().min(2, "Career must be at least 2 characters."),
   fullName: z.string().min(2, "Full name must be at least 2 characters."),
   address: z.string().min(5, "Address must be at least 5 characters."),
+  phoneNumber: z.string().min(9, "Valid phone number is required (e.g., 6XX XXX XXX)."),
   hospital: z.string().min(2, "Hospital name must be at least 2 characters."),
   email: z.string().email("Invalid email address."),
   password: z.string().min(8, "Password must be at least 8 characters."),
@@ -48,6 +49,7 @@ const defaultValues: Partial<SignupFormValues> = {
   career: "",
   fullName: "",
   address: "",
+  phoneNumber: "",
   hospital: "",
   email: "",
   password: "",
@@ -77,6 +79,7 @@ export function SignupForm() {
         fullName: data.fullName,
         career: data.career,
         address: data.address,
+        phoneNumber: data.phoneNumber,
         hospital: data.hospital,
         createdAt: Timestamp.now(), // Use Firestore Timestamp
       });
@@ -171,6 +174,19 @@ export function SignupForm() {
               <FormLabel>Address</FormLabel>
               <FormControl>
                 <Input placeholder="123 Nlongkak Street, Yaoundé" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="phoneNumber"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Phone Number</FormLabel>
+              <FormControl>
+                <Input type="tel" placeholder="6XX XXX XXX" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

@@ -1,3 +1,4 @@
+
 // src/app/dashboard/specialist/patient/[id]/page.tsx
 "use client";
 
@@ -5,7 +6,7 @@ import * as React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowLeft, UserCircle, Stethoscope, FlaskConical, FileScan, Activity, MailIcon, Info, CalendarDays, FileText as FileIcon, MessageSquare, AlertTriangle, Fingerprint, Send, Microscope, Hospital, PlusCircle, Loader2, UserCheck, Download, MessageCircleQuestion, GraduationCap, HeartPulse, Palette, Eye, Wind, Weight, Thermometer, Gauge, FolderOpen, Wifi, Video } from "lucide-react";
+import { ArrowLeft, UserCircle, Stethoscope, FlaskConical, FileScan, Activity, MailIcon, Info, CalendarDays, FileText as FileIcon, MessageSquare, AlertTriangle, Fingerprint, Send, Microscope, Hospital, PlusCircle, Loader2, UserCheck, Download, MessageCircleQuestion, GraduationCap, HeartPulse, Palette, Eye, Wind, Weight, Thermometer, Gauge, FolderOpen, Wifi, Video, Phone, MapPin } from "lucide-react";
 import Image from "next/image";
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -75,6 +76,7 @@ interface RequestingDoctorProfile {
     career: string;
     hospital: string;
     address: string;
+    phoneNumber?: string;
 }
 
 
@@ -421,12 +423,14 @@ export default function SpecialistPatientFeedbackPage() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                     {loadingData ? (
-                        <Skeleton className="h-20 w-full" />
+                        <Skeleton className="h-24 w-full" />
                     ) : requestingDoctorProfile ? (
                         <>
                             <DetailItem label="Name" value={`Dr. ${requestingDoctorProfile.fullName}`} />
                             <DetailItem label="Specialty" value={requestingDoctorProfile.career} />
                             <DetailItem label="Hospital" value={requestingDoctorProfile.hospital} />
+                            <DetailItem label="Address" value={requestingDoctorProfile.address} icon={MapPin} />
+                            <DetailItem label="Phone" value={requestingDoctorProfile.phoneNumber} icon={Phone} />
                             <EmailButton
                                 receiverEmail={requestingDoctorProfile.email}
                                 subject={`Question regarding patient: ${patient.patientName}`}
