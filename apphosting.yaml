@@ -5,7 +5,10 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
-  secrets:
-    - secret: CLOUDINARY_CLOUD_NAME
-    - secret: CLOUDINARY_API_KEY
-    - secret: CLOUDINARY_API_SECRET
+  # WARNING: Storing secrets as environment variables in this file is not recommended
+  # for production as they will be checked into your source code repository.
+  # Use Google Cloud Secret Manager for better security when possible.
+  environmentVariables:
+    CLOUDINARY_CLOUD_NAME: 'YOUR_CLOUD_NAME_HERE'
+    CLOUDINARY_API_KEY: 'YOUR_API_KEY_HERE'
+    CLOUDINARY_API_SECRET: 'YOUR_API_SECRET_HERE'
