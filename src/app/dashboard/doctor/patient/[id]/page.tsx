@@ -87,6 +87,13 @@ interface SpecialistUser {
     email: string;
 }
 
+interface DoctorProfile {
+    fullName: string;
+    email: string;
+    career: string;
+    hospital: string;
+}
+
 interface RequestConsultationDialogProps {
   patientId: string;
   patientName: string;
@@ -175,7 +182,7 @@ function RequestConsultationDialog({ patientId, patientName, onConsultationReque
   );
 }
 
-function EmailSpecialistDialog({ patientId, patientName }: { patientId: string; patientName: string }) {
+function EmailSpecialistDialog({ patientId, patientName, doctorProfile }: { patientId: string; patientName: string; doctorProfile: DoctorProfile | null }) {
     const [open, setOpen] = useState(false);
     const [specialists, setSpecialists] = useState<SpecialistUser[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -206,8 +213,12 @@ function EmailSpecialistDialog({ patientId, patientName }: { patientId: string; 
     const patientRecordUrl = typeof window !== 'undefined' 
         ? `${window.location.origin}/dashboard/specialist/patient/${patientId}`
         : '';
+    
+    const doctorSignature = doctorProfile
+        ? `\n\nThank you,\nDr. ${doctorProfile.fullName}\n${doctorProfile.career}\n${doctorProfile.hospital}`
+        : '';
 
-    const emailBody = `Dear Specialist,\n\nPlease join the video conference for a deep discussion about patient ${patientName}.\n\nMeeting link: ${meetingLink || '[Paste Meeting Link Here]'}\n\nFor patient details, please visit:\n${patientRecordUrl}\n`;
+    const emailBody = `Dear Specialist,\n\nPlease join the video conference for a deep discussion about patient ${patientName}.\n\nMeeting link: ${meetingLink || '[Paste Meeting Link Here]'}\n\nFor patient details, please visit:\n${patientRecordUrl}\n${doctorSignature}`;
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -268,6 +279,7 @@ export default function DoctorPatientDetailPage() {
 
   const [patient, setPatient] = useState<PatientData | null>(null);
   const [caregiverProfile, setCaregiverProfile] = useState<CaregiverProfile | null>(null);
+  const [doctorProfile, setDoctorProfile] = useState<DoctorProfile | null>(null);
   const [loadingPatient, setLoadingPatient] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -329,6 +341,20 @@ export default function DoctorPatientDetailPage() {
       fetchPatientData();
     }
   }, [authLoading, fetchPatientData]);
+  
+  useEffect(() => {
+    const fetchDoctorProfile = async () => {
+        if (currentUser) {
+            const docRef = doc(db, 'users', currentUser.uid);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                setDoctorProfile(docSnap.data() as DoctorProfile);
+            }
+        }
+    };
+    fetchDoctorProfile();
+  }, [currentUser]);
+
 
   useEffect(() => {
     let unsubFeedbacks: Unsubscribe | undefined;
@@ -780,7 +806,7 @@ export default function DoctorPatientDetailPage() {
                             <Video className="mr-2 h-4 w-4" /> Start Instant Meeting
                         </a>
                     </Button>
-                    <EmailSpecialistDialog patientId={patient.id} patientName={patient.patientName} />
+                    <EmailSpecialistDialog patientId={patient.id} patientName={patient.patientName} doctorProfile={doctorProfile} />
                 </CardContent>
             </Card>
             
@@ -795,9 +821,9 @@ export default function DoctorPatientDetailPage() {
                         onConsultationRequested={() => fetchPatientData()} // Re-fetch to update list and status
                     />
                      <EmailButton
-                        receiverEmail="specialist@example.com" // Generic, replace if actual specialist emails are stored
+                        receiverEmail="specialist@example.com" // This is a placeholder, the dialog provides a selector.
                         subject={`Regarding Patient: ${patient.patientName} (ID: ${patient.patientId}) - Follow-up`}
-                        body={`Dear Specialist,\n\nFollowing up on the consultation for patient ${patient.patientName} (ID: ${patient.patientId}).\n\n...\n\nThank you,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
+                        body={`Dear Specialist,\n\nFollowing up on the consultation for patient ${patient.patientName} (ID: ${patient.patientId}).\n\n...\n\n${doctorProfile ? `Thank you,\nDr. ${doctorProfile.fullName}\n${doctorProfile.career}\n${doctorProfile.hospital}` : ''}`}
                         buttonText="Email Specialist (General Follow-up)"
                         icon={<MailIcon className="mr-2 h-4 w-4" />}
                         className="w-full"
@@ -814,7 +840,7 @@ export default function DoctorPatientDetailPage() {
                      <EmailButton
                         receiverEmail={caregiverProfile?.email || "caregiver-email-not-available@example.com"}
                         subject={`Regarding Patient: ${patient.patientName} (ID: ${patient.patientId}) - Information Request`}
-                        body={`Dear Caregiver,\n\nPlease could you provide additional information or clarification regarding patient ${patient.patientName} (ID: ${patient.patientId})?\n\nSpecifically, I need...\n\nThank you,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
+                        body={`Dear Caregiver,\n\nPlease could you provide additional information or clarification regarding patient ${patient.patientName} (ID: ${patient.patientId})?\n\nSpecifically, I need...\n\n${doctorProfile ? `Thank you,\nDr. ${doctorProfile.fullName}\n${doctorProfile.career}\n${doctorProfile.hospital}` : ''}`}
                         buttonText="Request Info from Caregiver"
                         icon={<Send className="mr-2 h-4 w-4" />}
                         className="w-full"

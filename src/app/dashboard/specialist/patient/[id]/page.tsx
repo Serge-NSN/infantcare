@@ -69,6 +69,14 @@ export interface SpecialistConsultationRequest {
     feedbackProvidedAt?: Timestamp;
 }
 
+interface RequestingDoctorProfile {
+    fullName: string;
+    email: string;
+    career: string;
+    hospital: string;
+    address: string;
+}
+
 
 export default function SpecialistPatientFeedbackPage() {
   const params = useParams();
@@ -83,7 +91,7 @@ export default function SpecialistPatientFeedbackPage() {
   const [patient, setPatient] = useState<PatientData | null>(null);
   const [consultationRequest, setConsultationRequest] = useState<SpecialistConsultationRequest | null>(null);
   const [doctorFeedbacks, setDoctorFeedbacks] = useState<FeedbackItem[]>([]);
-  const [requestingDoctor, setRequestingDoctor] = useState<{ email?: string } | null>(null);
+  const [requestingDoctorProfile, setRequestingDoctorProfile] = useState<RequestingDoctorProfile | null>(null);
   
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -122,7 +130,7 @@ export default function SpecialistPatientFeedbackPage() {
             const doctorDocRef = doc(db, "users", requestData.requestingDoctorId);
             const doctorDocSnap = await getDoc(doctorDocRef);
             if (doctorDocSnap.exists()) {
-              setRequestingDoctor(doctorDocSnap.data() as { email?: string });
+              setRequestingDoctorProfile(doctorDocSnap.data() as RequestingDoctorProfile);
             }
           }
         } else {
@@ -405,6 +413,35 @@ export default function SpecialistPatientFeedbackPage() {
                 </Card>
             )}
 
+            <Card className="shadow-xl">
+                <CardHeader>
+                    <CardTitle className="text-xl font-headline flex items-center gap-2">
+                        <UserCheck className="w-5 h-5 text-primary"/> Requesting Doctor Info
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    {loadingData ? (
+                        <Skeleton className="h-20 w-full" />
+                    ) : requestingDoctorProfile ? (
+                        <>
+                            <DetailItem label="Name" value={`Dr. ${requestingDoctorProfile.fullName}`} />
+                            <DetailItem label="Specialty" value={requestingDoctorProfile.career} />
+                            <DetailItem label="Hospital" value={requestingDoctorProfile.hospital} />
+                            <EmailButton
+                                receiverEmail={requestingDoctorProfile.email}
+                                subject={`Question regarding patient: ${patient.patientName}`}
+                                body={`Dear Dr. ${requestingDoctorProfile.fullName},\n\nI have a question regarding the consultation request for patient ${patient.patientName} (ID: ${patient.patientId}).\n\n...`}
+                                buttonText="Email Doctor"
+                                icon={<MailIcon className="mr-2 h-4 w-4"/>}
+                                className="w-full"
+                            />
+                        </>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">Doctor details not available.</p>
+                    )}
+                </CardContent>
+            </Card>
+
              <Card className="shadow-xl">
                 <CardHeader>
                     <CardTitle className="text-xl font-headline flex items-center gap-2"><Video className="w-5 h-5"/>Video Conference</CardTitle>
@@ -416,15 +453,15 @@ export default function SpecialistPatientFeedbackPage() {
                         </a>
                     </Button>
                     <EmailButton
-                        receiverEmail={requestingDoctor?.email || ''}
+                        receiverEmail={requestingDoctorProfile?.email || ''}
                         subject={`Conference for Patient: ${patient.patientName} (ID: ${patient.patientId})`}
                         body={`Dear Dr. ${consultationRequest?.requestingDoctorName},\n\nPlease join the video conference to discuss patient ${patient.patientName} (ID: ${patient.patientId}).\n\nPaste the meeting link here: [Your Google Meet Link]\n\nThank you,\nDr. ${currentUser?.displayName || currentUser?.email?.split('@')[0]}\n`}
                         buttonText="Email Conference Link to Doctor"
                         icon={<MailIcon className="mr-2 h-4 w-4" />}
                         className="w-full"
                         variant="outline"
-                        disabled={!requestingDoctor?.email || !consultationRequest}
-                        title={!requestingDoctor?.email ? "Requesting doctor's email not available" : ""}
+                        disabled={!requestingDoctorProfile?.email || !consultationRequest}
+                        title={!requestingDoctorProfile?.email ? "Requesting doctor's email not available" : ""}
                     />
                 </CardContent>
             </Card>
