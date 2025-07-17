@@ -62,7 +62,7 @@ export default function HomePage() {
         
         <div className="relative z-10 flex flex-col items-center justify-center space-y-8 text-white max-w-4xl">
           <h1 className="text-5xl md:text-7xl font-headline font-extrabold tracking-tight drop-shadow-lg">
-            Welcome to InfantCare
+            Welcome Improved Teleneonatal Care System
           </h1>
           <p className="text-xl md:text-2xl font-body drop-shadow-md leading-relaxed">
             Bridging the gap in infant healthcare through seamless collaboration and advanced technology.

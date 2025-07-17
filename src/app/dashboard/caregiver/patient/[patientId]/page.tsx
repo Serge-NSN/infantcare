@@ -19,6 +19,7 @@ import { FeedbackList, type FeedbackItem } from '@/components/dashboard/shared/F
 import { TestRequestList, type TestRequestItem } from '@/components/dashboard/shared/TestRequestList';
 import { useToast } from '@/hooks/use-toast';
 import { generatePatientPdf } from '@/lib/utils/generatePatientPdf';
+import { TelemonitoringDialog } from '@/components/dashboard/shared/TelemonitoringDialog';
 
 interface PatientData {
   id: string;
@@ -70,6 +71,7 @@ export default function CaregiverPatientDetailPage() {
   const [testRequests, setTestRequests] = useState<TestRequestItem[]>([]);
   const [loadingTestRequests, setLoadingTestRequests] = useState(true);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isTelemonitoringOpen, setIsTelemonitoringOpen] = useState(false);
 
 
   const fetchPatientData = useCallback(async () => {
@@ -177,10 +179,7 @@ export default function CaregiverPatientDetailPage() {
   };
   
   const handleTelemonitoringClick = () => {
-    toast({
-      title: "Feature Coming Soon",
-      description: "Telemonitoring integration will be available in a future update to fetch live patient data.",
-    });
+    setIsTelemonitoringOpen(true);
   };
 
   const overallLoading = loadingPatient || authLoading;
@@ -459,6 +458,14 @@ export default function CaregiverPatientDetailPage() {
           {latestFeedback?.createdAt?.toDate && ` (Latest doctor feedback: ${new Date(latestFeedback.createdAt.toDate()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })})`}
         </CardFooter>
       </Card>
+      
+      {patient && (
+        <TelemonitoringDialog 
+          patientName={patient.patientName}
+          isOpen={isTelemonitoringOpen}
+          onOpenChange={setIsTelemonitoringOpen}
+        />
+      )}
     </div>
   );
 }

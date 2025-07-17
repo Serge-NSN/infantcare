@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { FeedbackList, type FeedbackItem } from '@/components/dashboard/shared/FeedbackList'; // To show doctor's prior feedback
 import { EmailButton } from '@/components/shared/EmailButton';
+import { TelemonitoringDialog } from '@/components/dashboard/shared/TelemonitoringDialog';
 
 
 interface PatientData {
@@ -100,6 +101,7 @@ export default function SpecialistPatientFeedbackPage() {
   
   const [newSpecialistFeedback, setNewSpecialistFeedback] = useState('');
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [isTelemonitoringOpen, setIsTelemonitoringOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!currentUser || !patientDocId) {
@@ -267,10 +269,7 @@ export default function SpecialistPatientFeedbackPage() {
   };
   
   const handleTelemonitoringClick = () => {
-    toast({
-      title: "Feature Coming Soon",
-      description: "Telemonitoring integration will be available in a future update to fetch live patient data.",
-    });
+    setIsTelemonitoringOpen(true);
   };
 
   const getSpecialistConsultationStatusBadgeProps = (status: SpecialistConsultationRequest['status']) => {
@@ -349,6 +348,15 @@ export default function SpecialistPatientFeedbackPage() {
                             )}
                         </div>
                     </div>
+                     <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleTelemonitoringClick}
+                        className="mt-4 sm:mt-0 self-start sm:self-center"
+                      >
+                        <Wifi className="mr-2 h-4 w-4" />
+                        Telemonitoring
+                      </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-6 pt-0">
@@ -490,6 +498,13 @@ export default function SpecialistPatientFeedbackPage() {
              </Card>
         </div>
       </div>
+       {patient && (
+        <TelemonitoringDialog 
+          patientName={patient.patientName}
+          isOpen={isTelemonitoringOpen}
+          onOpenChange={setIsTelemonitoringOpen}
+        />
+      )}
     </div>
   );
 }

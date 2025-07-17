@@ -26,6 +26,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { TelemonitoringDialog } from '@/components/dashboard/shared/TelemonitoringDialog';
 
 
 interface PatientData {
@@ -294,6 +295,7 @@ export default function DoctorPatientDetailPage() {
   const [loadingSpecialistConsultations, setLoadingSpecialistConsultations] = useState(true);
   
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isTelemonitoringOpen, setIsTelemonitoringOpen] = useState(false);
 
   const fetchPatientData = useCallback(async () => {
     if (!currentUser || !patientDocId) {
@@ -544,10 +546,7 @@ export default function DoctorPatientDetailPage() {
   };
   
   const handleTelemonitoringClick = () => {
-    toast({
-      title: "Feature Coming Soon",
-      description: "Telemonitoring integration will be available in a future update to fetch live patient data.",
-    });
+    setIsTelemonitoringOpen(true);
   };
 
   const overallLoading = authLoading || loadingPatient;
@@ -851,6 +850,13 @@ export default function DoctorPatientDetailPage() {
             </Card>
         </div>
       </div>
+       {patient && (
+        <TelemonitoringDialog 
+          patientName={patient.patientName}
+          isOpen={isTelemonitoringOpen}
+          onOpenChange={setIsTelemonitoringOpen}
+        />
+      )}
     </div>
   );
 }

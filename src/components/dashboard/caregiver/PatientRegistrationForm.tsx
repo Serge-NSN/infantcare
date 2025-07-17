@@ -332,13 +332,6 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
     );
   };
 
-  const handleTelemonitoringClick = () => {
-    toast({
-      title: "Feature Coming Soon",
-      description: "Telemonitoring integration will be available in a future update.",
-    });
-  };
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
@@ -666,15 +659,6 @@ export function PatientRegistrationForm({ patientToEdit }: PatientRegistrationFo
           >
             {isUploading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
             {isUploading ? "Uploading files..." : (form.formState.isSubmitting ? (isEditMode ? "Saving..." : "Registering...") : (isEditMode ? "Save Changes" : "Register Patient"))}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full sm:w-auto"
-            onClick={handleTelemonitoringClick}
-          >
-            <Wifi className="mr-2 h-5 w-5" />
-            Telemonitoring (Fetch Data)
           </Button>
         </div>
       </form>
