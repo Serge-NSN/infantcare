@@ -50,7 +50,7 @@ export default function HomePage() {
       <div className="relative min-h-[calc(80vh-4rem)] flex flex-col items-center justify-center p-6 text-center overflow-hidden bg-gradient-to-br from-primary/10 via-secondary/5 to-background">
         <Image
           src="https://images.unsplash.com/photo-1599045118108-bf2e0a775e13?q=80&w=2940&auto=format&fit=crop"
-          alt="A doctor interacting with a young child in a clinical setting"
+          alt="A doctor checks a young child's health in a friendly clinical setting, symbolizing professional and gentle pediatric care."
           layout="fill"
           objectFit="cover"
           quality={85}
@@ -60,7 +60,7 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-0"></div>
         
         <div className="relative z-10 flex flex-col items-center justify-center space-y-8 text-foreground max-w-4xl">
-          <h1 className="text-4xl md:text-6xl font-headline font-extrabold tracking-tight drop-shadow-lg">
+          <h1 className="text-4xl md:text-5xl font-headline font-extrabold tracking-tight drop-shadow-lg">
             Welcome to the Improved Teleneonatal Care System
           </h1>
           <p className="text-xl md:text-2xl font-body text-foreground/80 drop-shadow-md leading-relaxed">
