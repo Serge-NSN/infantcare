@@ -2,7 +2,7 @@
 "use client";
 
 import Link from 'next/link';
-import { Menu, X, Stethoscope, LogOut, LogIn, UserPlus, LayoutDashboard, User, BookOpen, Mail, HelpCircle, UserCog, PlusCircle, ListOrdered, FileSearch, ShieldCheck, Users2, Settings2 } from 'lucide-react';
+import { Menu, X, Stethoscope, LogOut, LogIn, UserPlus, LayoutDashboard, User, BookOpen, Mail, HelpCircle, UserCog, PlusCircle, ListOrdered, FileSearch, ShieldCheck, Users2, Settings2, Sun, Moon } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
@@ -42,6 +42,31 @@ interface NavItem {
   mobileIcon?: React.ReactElement;
   roles?: string[]; 
 }
+
+const ThemeToggle = () => {
+    const [theme, setTheme] = useState('light');
+
+    useEffect(() => {
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        setTheme(savedTheme);
+        document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+    }, []);
+
+    const toggleTheme = () => {
+        const newTheme = theme === 'light' ? 'dark' : 'light';
+        setTheme(newTheme);
+        localStorage.setItem('theme', newTheme);
+        document.documentElement.classList.toggle('dark', newTheme === 'dark');
+    };
+
+    return (
+        <Button variant="ghost" size="icon" onClick={toggleTheme}>
+            <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <span className="sr-only">Toggle theme</span>
+        </Button>
+    );
+};
 
 
 export function Header() {
@@ -199,6 +224,10 @@ export function Header() {
               </Link>
             </Button>
           ))}
+        </nav>
+        
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
           {isLoading ? (
             <div className="h-8 w-8 bg-muted rounded-full animate-pulse ml-2"></div>
           ) : currentUser && userProfile ? (
@@ -243,24 +272,22 @@ export function Header() {
               </DropdownMenu>
             </>
           ) : (
-            <>
+            <div className="hidden md:flex items-center gap-2">
               <Button variant="ghost" asChild className="ml-2">
                 <Link href="/login">Login</Link>
               </Button>
               <Button asChild>
                 <Link href="/signup">Sign Up</Link>
               </Button>
-            </>
+            </div>
           )}
-        </nav>
+        
 
         {/* Mobile Navigation */}
-        <div className="md:hidden flex items-center gap-2">
+        <div className="md:hidden">
           {isLoading ? (
              <div className="h-8 w-8 bg-muted rounded-full animate-pulse"></div>
           ) : currentUser && userProfile ? (
-            <>
-              <NotificationBell />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full">
@@ -298,7 +325,6 @@ export function Header() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </>
           ) : (
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
@@ -347,6 +373,7 @@ export function Header() {
               </SheetContent>
             </Sheet>
           )}
+        </div>
         </div>
       </div>
     </header>

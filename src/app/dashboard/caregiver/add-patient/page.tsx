@@ -17,10 +17,10 @@ export default function AddPatientPage() {
         <UserPlus className="h-8 w-8 text-primary" />
         <h1 className="text-3xl font-headline">New Patient Registration</h1>
       </div>
-      <Card className="w-full shadow-xl">
+      <Card className="w-full shadow-xl rounded-xl">
         <CardHeader>
           <CardTitle className="text-2xl font-headline">Patient Details</CardTitle>
-          <CardDescription className="font-body">
+          <CardDescription className="font-body text-muted-foreground">
             Please fill in all the required information for the new patient. Fields like Registration Date, Time, and Patient ID will be automatically generated.
           </CardDescription>
         </CardHeader>

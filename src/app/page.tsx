@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 import { getDashboardLink } from '@/lib/utils/getDashboardLink'; 
 import { Skeleton } from '@/components/ui/skeleton'; 
 import { HeartHandshake, Users, ShieldCheck, ArrowRight } from 'lucide-react';
-import { Card, CardTitle, CardDescription } from '@/components/ui/card'; // Added import
+import { Card, CardTitle, CardDescription, CardHeader, CardContent } from '@/components/ui/card';
 
 export default function HomePage() {
   const { currentUser, loading: authLoading } = useAuth();
@@ -47,24 +47,24 @@ export default function HomePage() {
 
   return (
     <>
-      <div className="relative min-h-[calc(80vh-4rem)] flex flex-col items-center justify-center p-6 text-center overflow-hidden bg-gradient-to-br from-primary/70 via-secondary/50 to-background">
+      <div className="relative min-h-[calc(80vh-4rem)] flex flex-col items-center justify-center p-6 text-center overflow-hidden bg-gradient-to-br from-primary/10 via-secondary/5 to-background">
         <Image
-          src="https://www.unicef.org/wca/sites/unicef.org.wca/files/styles/press_release_feature/public/UN0188884.jpg.webp?itok=fe-ym6rP"
+          src="https://images.unsplash.com/photo-1599045118108-bf2e0a775e13?q=80&w=2940&auto=format&fit=crop"
           alt="Pediatric care background with happy child and doctor"
           layout="fill"
           objectFit="cover"
           quality={85}
-          className="opacity-30 z-0"
+          className="opacity-20 z-0"
           data-ai-hint="happy child doctor"
           priority
         />
-        <div className="absolute inset-0 bg-black/30 backdrop-blur-sm z-0"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-0"></div>
         
-        <div className="relative z-10 flex flex-col items-center justify-center space-y-8 text-white max-w-4xl">
+        <div className="relative z-10 flex flex-col items-center justify-center space-y-8 text-foreground max-w-4xl">
           <h1 className="text-5xl md:text-7xl font-headline font-extrabold tracking-tight drop-shadow-lg">
-            Welcome Improved Teleneonatal Care System
+            Welcome to the Improved Teleneonatal Care System
           </h1>
-          <p className="text-xl md:text-2xl font-body drop-shadow-md leading-relaxed">
+          <p className="text-xl md:text-2xl font-body text-foreground/80 drop-shadow-md leading-relaxed">
             Bridging the gap in infant healthcare through seamless collaboration and advanced technology.
             Connect with specialists, manage patient data, and provide the best care for our youngest patients.
           </p>
@@ -72,16 +72,16 @@ export default function HomePage() {
             <Button asChild size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground px-10 py-7 text-lg rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
               <Link href="/signup">Get Started <ArrowRight className="ml-2 h-5 w-5"/></Link>
             </Button>
-            <Button asChild variant="outline" size="lg" className="border-white text-white bg-white/20 hover:bg-white/30 hover:text-white px-10 py-7 text-lg rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+            <Button asChild variant="outline" size="lg" className="border-border text-foreground bg-background/50 hover:bg-background/80 hover:text-foreground px-10 py-7 text-lg rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
               <Link href="/education">Learn More</Link>
             </Button>
           </div>
         </div>
       </div>
 
-      <section className="py-16 bg-background">
+      <section className="py-20 bg-background">
         <div className="container mx-auto px-6">
-          <h2 className="text-3xl md:text-4xl font-headline text-center text-foreground mb-12">Why Choose InfantCare?</h2>
+          <h2 className="text-3xl md:text-4xl font-headline text-center text-foreground mb-16">Why Choose InfantCare?</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <FeatureCard
               icon={<HeartHandshake className="h-12 w-12 text-primary" />}
@@ -106,11 +106,15 @@ export default function HomePage() {
 }
 
 const FeatureCard = ({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) => (
-  <Card className="bg-card shadow-xl hover:shadow-2xl transition-shadow duration-300 rounded-xl p-6 text-center transform hover:-translate-y-1">
-    <div className="flex justify-center mb-4">
-      {icon}
-    </div>
-    <CardTitle className="text-2xl font-headline mb-3 text-foreground">{title}</CardTitle>
-    <CardDescription className="text-muted-foreground text-base leading-relaxed">{description}</CardDescription>
+  <Card className="bg-card shadow-xl hover:shadow-2xl transition-shadow duration-300 rounded-xl p-8 text-center transform hover:-translate-y-2">
+    <CardHeader className="p-0 mb-4">
+      <div className="flex justify-center mb-4">
+        {icon}
+      </div>
+      <CardTitle className="text-2xl font-headline mb-3 text-foreground">{title}</CardTitle>
+    </CardHeader>
+    <CardContent className="p-0">
+      <p className="text-muted-foreground text-base leading-relaxed">{description}</p>
+    </CardContent>
   </Card>
 );
