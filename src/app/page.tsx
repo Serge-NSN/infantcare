@@ -50,18 +50,17 @@ export default function HomePage() {
       <div className="relative min-h-[calc(80vh-4rem)] flex flex-col items-center justify-center p-6 text-center overflow-hidden bg-gradient-to-br from-primary/10 via-secondary/5 to-background">
         <Image
           src="https://images.unsplash.com/photo-1599045118108-bf2e0a775e13?q=80&w=2940&auto=format&fit=crop"
-          alt="Pediatric care background with happy child and doctor"
+          alt="A doctor interacting with a young child in a clinical setting"
           layout="fill"
           objectFit="cover"
           quality={85}
           className="opacity-20 z-0"
-          data-ai-hint="happy child doctor"
           priority
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-0"></div>
         
         <div className="relative z-10 flex flex-col items-center justify-center space-y-8 text-foreground max-w-4xl">
-          <h1 className="text-5xl md:text-7xl font-headline font-extrabold tracking-tight drop-shadow-lg">
+          <h1 className="text-4xl md:text-6xl font-headline font-extrabold tracking-tight drop-shadow-lg">
             Welcome to the Improved Teleneonatal Care System
           </h1>
           <p className="text-xl md:text-2xl font-body text-foreground/80 drop-shadow-md leading-relaxed">
