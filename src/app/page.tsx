@@ -49,8 +49,8 @@ export default function HomePage() {
     <>
       <div className="relative min-h-[calc(80vh-4rem)] flex flex-col items-center justify-center p-6 text-center overflow-hidden bg-gradient-to-br from-primary/10 via-secondary/5 to-background">
         <Image
-          src="https://images.unsplash.com/photo-1599045118108-bf2e0a775e13?q=80&w=2940&auto=format&fit=crop"
-          alt="A doctor checks a young child's health in a friendly clinical setting, symbolizing professional and gentle pediatric care."
+          src="/hero-background.jpg"
+          alt="InfantCare application background image"
           layout="fill"
           objectFit="cover"
           quality={85}
