@@ -114,4 +114,3 @@ const FeatureCard = ({ icon, title, description }: { icon: React.ReactNode, titl
     <CardDescription className="text-muted-foreground text-base leading-relaxed">{description}</CardDescription>
   </Card>
 );
-
