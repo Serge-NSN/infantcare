@@ -12,7 +12,7 @@ import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { updateProfile, updateEmail, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link'; // Added Link import
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -22,6 +22,7 @@ import { ArrowLeft, UserCog, Save } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getDashboardLink } from '@/lib/utils/getDashboardLink';
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const profileSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters."),
@@ -30,11 +31,30 @@ const profileSchema = z.object({
   address: z.string().min(5, "Address must be at least 5 characters."),
   phoneNumber: z.string().min(9, "Valid phone number is required.").optional(),
   hospital: z.string().min(2, "Hospital name must be at least 2 characters."),
+  specialty: z.string().optional(),
   currentPassword: z.string().optional(), // For email change re-authentication
   role: z.string().optional(),
+}).refine(data => {
+    if (data.role === 'Specialist') {
+      return !!data.specialty;
+    }
+    return true;
+}, {
+    message: "Specialty is required for specialists.",
+    path: ["specialty"],
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
+
+const specialties = [
+  "Neurologist",
+  "Cardiologist",
+  "Ophthalmologist",
+  "Hematologist",
+  "Pulmonologist",
+  "Otolaryngologist"
+];
+
 
 export default function ProfilePage() {
   const { currentUser, loading: authLoading } = useAuth();
@@ -53,12 +73,15 @@ export default function ProfilePage() {
       address: '',
       phoneNumber: '',
       hospital: '',
+      specialty: '',
       currentPassword: '',
       role: '',
     }
   });
 
   const watchedEmail = watch("email");
+  const watchedRole = watch("role");
+
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -82,6 +105,7 @@ export default function ProfilePage() {
               address: dbData.address || '',
               phoneNumber: dbData.phoneNumber || '',
               hospital: dbData.hospital || '',
+              specialty: dbData.specialty || '',
               currentPassword: '',
               role: dbData.role || '',
             };
@@ -123,7 +147,7 @@ export default function ProfilePage() {
         address: data.address,
         phoneNumber: data.phoneNumber,
         hospital: data.hospital,
-        // email is updated in Auth, Firestore email field should reflect Auth email
+        specialty: data.role === 'Specialist' ? data.specialty : null,
       });
 
       // Update Firebase Auth profile (display name)
@@ -255,6 +279,28 @@ export default function ProfilePage() {
                   </FormItem>
                 )}
               />
+            )}
+             {watchedRole === 'Specialist' && (
+                <Controller
+                    name="specialty"
+                    control={control}
+                    render={({ field }) => (
+                    <FormItem>
+                        <Label>Specialty</Label>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                            <SelectTrigger>
+                            <SelectValue placeholder="Select your specialty" />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {specialties.map(spec => <SelectItem key={spec} value={spec}>{spec}</SelectItem>)}
+                        </SelectContent>
+                        </Select>
+                        {errors.specialty && <FormMessage>{errors.specialty.message}</FormMessage>}
+                    </FormItem>
+                    )}
+                />
             )}
             <Controller
               name="career"

@@ -1,3 +1,4 @@
+
 // src/app/dashboard/doctor/patient/[id]/page.tsx
 "use client";
 
@@ -86,6 +87,7 @@ interface SpecialistUser {
     uid: string;
     fullName: string;
     email: string;
+    specialty: string;
 }
 
 interface DoctorProfile {
@@ -94,6 +96,16 @@ interface DoctorProfile {
     career: string;
     hospital: string;
 }
+
+const specialties = [
+  "Neurologist",
+  "Cardiologist",
+  "Ophthalmologist",
+  "Hematologist",
+  "Pulmonologist",
+  "Otolaryngologist"
+];
+
 
 interface RequestConsultationDialogProps {
   patientId: string;
@@ -107,10 +119,47 @@ function RequestConsultationDialog({ patientId, patientName, onConsultationReque
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { currentUser } = useAuth();
   const { toast } = useToast();
+  const [specialtyType, setSpecialtyType] = useState('');
+  const [specialists, setSpecialists] = useState<SpecialistUser[]>([]);
+  const [selectedSpecialist, setSelectedSpecialist] = useState<SpecialistUser | null>(null);
+  const [loadingSpecialists, setLoadingSpecialists] = useState(false);
+
+
+  useEffect(() => {
+    const fetchSpecialists = async () => {
+        if (!specialtyType) {
+            setSpecialists([]);
+            return;
+        }
+        setLoadingSpecialists(true);
+        try {
+            const q = query(
+                collection(db, 'users'),
+                where('role', '==', 'Specialist'),
+                where('specialty', '==', specialtyType)
+            );
+            const querySnapshot = await getDocs(q);
+            const fetchedSpecialists = querySnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as SpecialistUser));
+            setSpecialists(fetchedSpecialists);
+        } catch (error) {
+            console.error("Error fetching specialists:", error);
+            toast({ title: "Error", description: "Could not fetch specialist list.", variant: "destructive" });
+        } finally {
+            setLoadingSpecialists(false);
+        }
+    };
+
+    fetchSpecialists();
+  }, [specialtyType, toast]);
+
+  const handleSpecialistSelection = (uid: string) => {
+    const specialist = specialists.find(s => s.uid === uid) || null;
+    setSelectedSpecialist(specialist);
+  }
 
   const handleSubmit = async () => {
-    if (!currentUser || !requestDetails.trim()) {
-      toast({ title: "Error", description: "Consultation details cannot be empty.", variant: "destructive" });
+    if (!currentUser || !requestDetails.trim() || !selectedSpecialist) {
+      toast({ title: "Error", description: "Please select a specialty, a specialist, and provide consultation details.", variant: "destructive" });
       return;
     }
     setIsSubmitting(true);
@@ -123,6 +172,9 @@ function RequestConsultationDialog({ patientId, patientName, onConsultationReque
         requestDetails: requestDetails.trim(),
         status: 'Pending Specialist Review',
         requestedAt: serverTimestamp(),
+        specialistId: selectedSpecialist.uid,
+        specialistName: selectedSpecialist.fullName,
+        specialty: selectedSpecialist.specialty,
       };
       
       const batch = writeBatch(db);
@@ -135,8 +187,10 @@ function RequestConsultationDialog({ patientId, patientName, onConsultationReque
       
       await batch.commit();
 
-      toast({ title: "Consultation Requested", description: `Specialist consultation requested for ${patientName}.` });
+      toast({ title: "Consultation Requested", description: `Specialist consultation assigned to Dr. ${selectedSpecialist.fullName}.` });
       setRequestDetails('');
+      setSpecialtyType('');
+      setSelectedSpecialist(null);
       setOpen(false);
       onConsultationRequested();
     } catch (error) {
@@ -156,10 +210,34 @@ function RequestConsultationDialog({ patientId, patientName, onConsultationReque
         <DialogHeader>
           <DialogTitle>Request Specialist Consultation for {patientName}</DialogTitle>
           <DialogDescription>
-            Clearly describe the reason for consultation and what specific advice you are seeking from the specialist.
+            Select a specialty to find a specialist, then describe the reason for the consultation.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor="specialty-type">Specialty</Label>
+            <Select onValueChange={setSpecialtyType} value={specialtyType}>
+                <SelectTrigger id="specialty-type">
+                    <SelectValue placeholder="Select a specialty type" />
+                </SelectTrigger>
+                <SelectContent>
+                    {specialties.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="specialist-select">Assign to Specialist</Label>
+            <Select onValueChange={handleSpecialistSelection} value={selectedSpecialist?.uid || ''} disabled={!specialtyType || loadingSpecialists}>
+                <SelectTrigger id="specialist-select">
+                    <SelectValue placeholder={loadingSpecialists ? "Loading..." : "Select a specialist"} />
+                </SelectTrigger>
+                <SelectContent>
+                    {specialists.map(s => <SelectItem key={s.uid} value={s.uid}>{s.fullName} ({s.email})</SelectItem>)}
+                </SelectContent>
+            </Select>
+          </div>
+
           <div className="grid gap-2">
             <Label htmlFor="consultationDetails">Consultation Details</Label>
             <Textarea
@@ -173,7 +251,7 @@ function RequestConsultationDialog({ patientId, patientName, onConsultationReque
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting || !requestDetails.trim()} className="bg-accent text-accent-foreground">
+          <Button onClick={handleSubmit} disabled={isSubmitting || !requestDetails.trim() || !selectedSpecialist} className="bg-accent text-accent-foreground">
             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Send className="mr-2 h-4 w-4"/>}
             {isSubmitting ? 'Submitting...' : 'Submit Request'}
           </Button>
@@ -242,7 +320,7 @@ function EmailSpecialistDialog({ patientId, patientName, doctorProfile }: { pati
                             </SelectTrigger>
                             <SelectContent>
                                 {specialists.map(s => (
-                                    <SelectItem key={s.uid} value={s.email}>{s.fullName} ({s.email})</SelectItem>
+                                    <SelectItem key={s.uid} value={s.email}>{s.fullName} ({s.specialty})</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -727,12 +805,13 @@ export default function DoctorPatientDetailPage() {
                                 <CardHeader>
                                     <div className="flex justify-between items-start">
                                         <CardTitle className="text-md font-semibold">
-                                            Consultation requested on: {consult.requestedAt?.toDate ? new Date(consult.requestedAt.toDate()).toLocaleDateString() : 'N/A'}
+                                            Consultation assigned to: Dr. {consult.specialistName || 'N/A'}
                                         </CardTitle>
                                         <Badge variant={badgeProps.variant} className={badgeProps.className}>
                                             {consult.status}
                                         </Badge>
                                     </div>
+                                     <CardDescription className="text-xs">Requested on: {consult.requestedAt?.toDate ? new Date(consult.requestedAt.toDate()).toLocaleDateString() : 'N/A'}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-2 text-sm">
                                     <div>
@@ -741,7 +820,7 @@ export default function DoctorPatientDetailPage() {
                                     </div>
                                     {consult.status === 'Feedback Provided by Specialist' && (
                                     <div>
-                                        <p className="font-medium text-muted-foreground">Specialist (Dr. {consult.specialistName || 'N/A'}) Feedback ({consult.feedbackProvidedAt?.toDate ? new Date(consult.feedbackProvidedAt.toDate()).toLocaleDateString() : 'N/A'}):</p>
+                                        <p className="font-medium text-muted-foreground">Specialist Feedback ({consult.feedbackProvidedAt?.toDate ? new Date(consult.feedbackProvidedAt.toDate()).toLocaleDateString() : 'N/A'}):</p>
                                         <p className="whitespace-pre-wrap p-2 border rounded-md bg-background text-green-700 dark:text-green-400">{consult.specialistFeedback}</p>
                                     </div>
                                     )}

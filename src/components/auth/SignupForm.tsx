@@ -2,7 +2,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +33,7 @@ const signupFormSchema = z.object({
   role: z.enum(["Caregiver", "Specialist", "Medical Doctor"], {
     required_error: "Please select a role.",
   }),
+  specialty: z.string().optional(),
   career: z.string().min(2, "Career must be at least 2 characters."),
   fullName: z.string().min(2, "Full name must be at least 2 characters."),
   address: z.string().min(5, "Address must be at least 5 characters."),
@@ -40,12 +41,22 @@ const signupFormSchema = z.object({
   hospital: z.string().min(2, "Hospital name must be at least 2 characters."),
   email: z.string().email("Invalid email address."),
   password: z.string().min(8, "Password must be at least 8 characters."),
+}).refine(data => {
+    if (data.role === 'Specialist') {
+      return !!data.specialty;
+    }
+    return true;
+}, {
+    message: "Specialty is required for specialists.",
+    path: ["specialty"],
 });
+
 
 type SignupFormValues = z.infer<typeof signupFormSchema>;
 
 const defaultValues: Partial<SignupFormValues> = {
   role: undefined,
+  specialty: undefined,
   career: "",
   fullName: "",
   address: "",
@@ -55,6 +66,16 @@ const defaultValues: Partial<SignupFormValues> = {
   password: "",
 };
 
+const specialties = [
+  "Neurologist",
+  "Cardiologist",
+  "Ophthalmologist",
+  "Hematologist",
+  "Pulmonologist",
+  "Otolaryngologist"
+];
+
+
 export function SignupForm() {
   const { toast } = useToast();
   const router = useRouter();
@@ -63,6 +84,8 @@ export function SignupForm() {
     resolver: zodResolver(signupFormSchema),
     defaultValues,
   });
+
+  const watchedRole = form.watch("role");
 
   async function onSubmit(data: SignupFormValues) {
     try {
@@ -81,6 +104,7 @@ export function SignupForm() {
         address: data.address,
         phoneNumber: data.phoneNumber,
         hospital: data.hospital,
+        specialty: data.role === 'Specialist' ? data.specialty : null,
         createdAt: Timestamp.now(), // Use Firestore Timestamp
       });
       console.log("User data stored in Firestore");
@@ -140,6 +164,28 @@ export function SignupForm() {
             </FormItem>
           )}
         />
+        {watchedRole === 'Specialist' && (
+          <FormField
+            control={form.control}
+            name="specialty"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Specialty</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select your specialty" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {specialties.map(spec => <SelectItem key={spec} value={spec}>{spec}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
         <FormField
           control={form.control}
           name="career"

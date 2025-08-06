@@ -1,3 +1,4 @@
+
 // src/app/dashboard/specialist/page.tsx
 "use client";
 
@@ -21,16 +22,19 @@ interface PatientForSpecialistList {
   consultationRequestId?: string; 
   requestDetails?: string; 
   requestingDoctorName?: string;
+  specialty?: string;
 }
 
 interface SpecialistDashboardStats {
-    awaitingReviewCount: number;
+    assignedToMeCount: number;
     reviewedCount: number;
+    unassignedCount: number;
 }
 
 export default function SpecialistDashboardPage() {
   const { currentUser, loading: authLoading } = useAuth();
-  const [patientsForReview, setPatientsForReview] = useState<PatientForSpecialistList[]>([]);
+  const [assignedToMe, setAssignedToMe] = useState<PatientForSpecialistList[]>([]);
+  const [unassigned, setUnassigned] = useState<PatientForSpecialistList[]>([]);
   const [stats, setStats] = useState<SpecialistDashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,61 +54,47 @@ export default function SpecialistDashboardPage() {
       setLoading(true);
       setError(null);
       try {
-        // Fetch stats
         const consultationsCollectionGroup = collectionGroup(db, 'specialistConsultations');
 
-        const awaitingReviewQuery = query(
-          consultationsCollectionGroup,
-          where("status", "==", "Pending Specialist Review")
-        );
-        const awaitingReviewSnapshot = await getCountFromServer(awaitingReviewQuery);
-        const awaitingReviewCount = awaitingReviewSnapshot.data().count;
+        // Stats
+        const assignedToMeQuery = query(consultationsCollectionGroup, where("status", "==", "Pending Specialist Review"), where("specialistId", "==", currentUser.uid));
+        const assignedToMeSnapshot = await getCountFromServer(assignedToMeQuery);
         
-        const reviewedCasesQuery = query(
-          consultationsCollectionGroup,
-          where("specialistId", "==", currentUser.uid),
-          where("status", "==", "Feedback Provided by Specialist")
-        );
+        const reviewedCasesQuery = query(consultationsCollectionGroup, where("specialistId", "==", currentUser.uid), where("status", "==", "Feedback Provided by Specialist"));
         const reviewedCasesSnapshot = await getCountFromServer(reviewedCasesQuery);
-        const reviewedCount = reviewedCasesSnapshot.data().count;
+
+        const unassignedQuery = query(consultationsCollectionGroup, where("status", "==", "Pending Specialist Review"), where("specialistId", "==", null));
+        const unassignedSnapshot = await getCountFromServer(unassignedQuery);
         
-        setStats({ awaitingReviewCount, reviewedCount });
+        setStats({ 
+            assignedToMeCount: assignedToMeSnapshot.data().count,
+            reviewedCount: reviewedCasesSnapshot.data().count,
+            unassignedCount: unassignedSnapshot.data().count,
+        });
 
-        // Fetch list of patients awaiting review (this is slightly different logic from the count)
-        const patientsCollectionRef = collection(db, 'patients');
-        const qPatients = query(
-          patientsCollectionRef,
-          where('feedbackStatus', '==', 'Pending Specialist Consultation'),
-          orderBy('registrationDateTime', 'desc') 
-        );
-
-        const patientsSnapshot = await getDocs(qPatients);
-        const fetchedPatients: PatientForSpecialistList[] = [];
-
-        for (const patientDoc of patientsSnapshot.docs) {
-          const patientData = patientDoc.data();
-          const consultationsQuery = query(
-            collection(db, "patients", patientDoc.id, "specialistConsultations"),
-            where("status", "==", "Pending Specialist Review"),
-            orderBy("requestedAt", "desc"),
-          );
-          const consultationSnapshot = await getDocs(consultationsQuery);
-          
-          if (!consultationSnapshot.empty) {
-            const firstPendingRequest = consultationSnapshot.docs[0].data();
-            fetchedPatients.push({
-              id: patientDoc.id,
-              patientName: patientData.patientName,
-              patientAge: patientData.patientAge,
-              registrationDateTime: patientData.registrationDateTime,
-              feedbackStatus: patientData.feedbackStatus,
-              consultationRequestId: consultationSnapshot.docs[0].id, 
-              requestDetails: firstPendingRequest.requestDetails,
-              requestingDoctorName: firstPendingRequest.requestingDoctorName,
-            });
-          }
+        // Fetch lists of patients
+        const assignedToMeDocs = await getDocs(assignedToMeQuery);
+        const assignedPatientsList: PatientForSpecialistList[] = [];
+        for (const consultDoc of assignedToMeDocs.docs) {
+            const consultData = consultDoc.data();
+            const patientDoc = await getDoc(consultDoc.ref.parent.parent!);
+            if (patientDoc.exists()) {
+                const patientData = patientDoc.data();
+                 assignedPatientsList.push({
+                    id: patientDoc.id,
+                    patientName: patientData.patientName,
+                    patientAge: patientData.patientAge,
+                    registrationDateTime: patientData.registrationDateTime,
+                    feedbackStatus: patientData.feedbackStatus,
+                    consultationRequestId: consultDoc.id,
+                    requestDetails: consultData.requestDetails,
+                    requestingDoctorName: consultData.requestingDoctorName,
+                    specialty: consultData.specialty
+                 });
+            }
         }
-        setPatientsForReview(fetchedPatients);
+        setAssignedToMe(assignedPatientsList);
+        
       } catch (err: any) {
         console.error("Error fetching data for specialist dashboard:", err);
         let specificError = "Could not load dashboard data. Please try again later.";
@@ -177,15 +167,15 @@ export default function SpecialistDashboardPage() {
 
        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
         <StatCard 
-            title="Awaiting Your Review" 
-            value={stats?.awaitingReviewCount ?? 0} 
+            title="Assigned To You" 
+            value={stats?.assignedToMeCount ?? 0} 
             icon={Clock} 
-            description="Cases referred by doctors for your feedback."
+            description="Cases directly assigned to you for review."
             colorClass="text-orange-600" 
             bgColorClass="bg-orange-600/10"
         />
         <StatCard 
-            title="Reviewed Cases" 
+            title="Your Reviewed Cases" 
             value={stats?.reviewedCount ?? 0} 
             icon={UserCheck} 
             description="Patients you have provided feedback for." 
@@ -200,10 +190,10 @@ export default function SpecialistDashboardPage() {
       <Card className="shadow-xl rounded-xl">
         <CardHeader>
           <CardTitle className="text-2xl font-headline flex items-center gap-2 text-foreground">
-            <ListChecks className="w-7 h-7 text-primary" /> Pending Consultation Queue
+            <ListChecks className="w-7 h-7 text-primary" /> Cases Assigned To You
           </CardTitle>
           <CardDescription className="font-body text-muted-foreground">
-            Review cases from the general pool that require specialist feedback.
+            These cases have been specifically assigned to you by a doctor.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-2">
@@ -211,11 +201,11 @@ export default function SpecialistDashboardPage() {
             <div className="space-y-4 mt-4">
               {[...Array(2)].map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-lg" />)}
             </div>
-          ) : patientsForReview.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No patients currently awaiting specialist review.</p>
+          ) : assignedToMe.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No cases are currently assigned to you.</p>
           ) : (
             <div className="space-y-6 mt-4">
-              {patientsForReview.map(patient => (
+              {assignedToMe.map(patient => (
                 <Card key={patient.id} className="bg-card hover:shadow-lg transition-shadow duration-300 rounded-lg border border-border">
                    <CardHeader className="pb-3">
                         <div className="flex flex-col sm:flex-row justify-between items-start">
@@ -223,13 +213,11 @@ export default function SpecialistDashboardPage() {
                                 {patient.patientName}
                                 <span className="text-base font-normal text-muted-foreground ml-2">(Age: {patient.patientAge})</span>
                             </CardTitle>
-                            <Badge variant="outline" className="mt-1 sm:mt-0 border-orange-500 text-orange-600 bg-orange-500/10">
-                                <Clock className="w-4 h-4 mr-1.5"/>{patient.feedbackStatus}
+                             <Badge variant="outline" className="mt-1 sm:mt-0 border-purple-500 text-purple-600 bg-purple-500/10">
+                                {patient.specialty}
                             </Badge>
                         </div>
                         <CardDescription className="text-xs font-body text-muted-foreground pt-1">
-                            Registered: {patient.registrationDateTime?.toDate ? new Date(patient.registrationDateTime.toDate()).toLocaleDateString() : 'N/A'}
-                            <br />
                             Requested by: Dr. {patient.requestingDoctorName || 'N/A'}
                         </CardDescription>
                     </CardHeader>
