@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { getDatabase, ref, onValue, off, type Database } from 'firebase/database';
-import { db as firestoreDb, app } from '@/lib/firebase'; // Use the main app instance
+import { app } from '@/lib/firebase'; // Use the main app instance
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ResponsiveContainer, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line } from 'recharts';
