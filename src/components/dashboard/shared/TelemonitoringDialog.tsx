@@ -2,8 +2,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { initializeApp, getApp, deleteApp, type FirebaseApp } from 'firebase/app';
 import { getDatabase, ref, onValue, off, type Database } from 'firebase/database';
+import { db as firestoreDb, app } from '@/lib/firebase'; // Use the main app instance
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ResponsiveContainer, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line } from 'recharts';
@@ -11,19 +11,6 @@ import { Thermometer, Droplets, HeartPulse, Wind, Activity, Video } from 'lucide
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-
-const secondaryAppConfig = {
-  apiKey: "AIzaSyCg3Mklk-OOY9EH3GJfmqvnV8NBqO4frx0",
-  authDomain: "espdata-d23b7.firebaseapp.com",
-  databaseURL: "https://espdata-d23b7-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "espdata-d23b7",
-  storageBucket: "espdata-d23b7.firebasestorage.app",
-  messagingSenderId: "110005956579",
-  appId: "1:110005956579:web:e260a7a9e6fd6bafd5fad6",
-  measurementId: "G-4JN4F1KMPY"
-};
-
-const SECONDARY_APP_NAME = 'telemonitoringApp';
 
 interface Vitals {
   airTemp: string;
@@ -65,15 +52,9 @@ export function TelemonitoringDialog({ patientName, isOpen, onOpenChange }: Tele
     if (!isOpen) {
       return;
     }
-
-    let secondaryApp: FirebaseApp;
-    try {
-      secondaryApp = getApp(SECONDARY_APP_NAME);
-    } catch (e) {
-      secondaryApp = initializeApp(secondaryAppConfig, SECONDARY_APP_NAME);
-    }
-
-    const db: Database = getDatabase(secondaryApp);
+    
+    // Get the Realtime Database instance from the main Firebase app connection
+    const db: Database = getDatabase(app); 
     const healthRef = ref(db, 'Health');
 
     const listener = onValue(healthRef, (snapshot) => {
