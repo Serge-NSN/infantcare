@@ -7,8 +7,10 @@ import { getDatabase, ref, onValue, off, type Database } from 'firebase/database
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ResponsiveContainer, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line } from 'recharts';
-import { Thermometer, Droplets, HeartPulse, Wind, Activity } from 'lucide-react';
+import { Thermometer, Droplets, HeartPulse, Wind, Activity, Video } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 const secondaryAppConfig = {
   apiKey: "AIzaSyCg3Mklk-OOY9EH3GJfmqvnV8NBqO4frx0",
@@ -132,7 +134,17 @@ export function TelemonitoringDialog({ patientName, isOpen, onOpenChange }: Tele
             <VitalCard icon={<Wind size={32}/>} title="Air Temp" value={vitals?.airTemp ?? '--'} unit="°C" isLoading={isLoading} />
         </div>
 
-        <div className="flex-grow mt-4 min-h-[200px]">
+        <div className="my-4 text-center">
+            <Button asChild className="bg-green-600 hover:bg-green-700 text-white">
+                <Link href="http://198.163.43.208" target="_blank" rel="noopener noreferrer">
+                    <Video className="mr-2 h-5 w-5"/>
+                    Tele-encounter
+                </Link>
+            </Button>
+        </div>
+
+
+        <div className="flex-grow min-h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
