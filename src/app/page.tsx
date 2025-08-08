@@ -50,7 +50,7 @@ export default function HomePage() {
       <div className="relative min-h-[calc(80vh-4rem)] flex flex-col items-center justify-center p-6 text-center overflow-hidden bg-gradient-to-br from-primary/10 via-secondary/5 to-background">
         <Image
           src="/hero-background.jpg"
-          alt="InfantCare application background image"
+          alt=""
           layout="fill"
           objectFit="cover"
           quality={85}
