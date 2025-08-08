@@ -9,7 +9,7 @@ import { ListChecks, UserCheck, AlertTriangle, Eye, Clock, GraduationCap } from 
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, Timestamp, orderBy, collectionGroup, getCountFromServer } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp, orderBy, collectionGroup, getCountFromServer, getDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
